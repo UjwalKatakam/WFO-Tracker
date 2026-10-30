@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Building Silhouette on left / center (32 to 58 X) -->
+    <!-- Tall building -->
+    <path
+        android:fillColor="#334155"
+        android:pathData="M28,74 L28,40 L46,40 L46,74 Z" />
+    <path
+        android:fillColor="#475569"
+        android:pathData="M46,74 L46,32 L60,32 L60,74 Z" />
+
+    <!-- Building Windows -->
+    <path
+        android:fillColor="#94A3B8"
+        android:pathData="M32,44 h3 v3 h-3 z M38,44 h3 v3 h-3 z
+                          M32,50 h3 v3 h-3 z M38,50 h3 v3 h-3 z
+                          M32,56 h3 v3 h-3 z M38,56 h3 v3 h-3 z
+                          M32,62 h3 v3 h-3 z M38,62 h3 v3 h-3 z
+                          M50,36 h3 v3 h-3 z M54,36 h3 v3 h-3 z
+                          M50,42 h3 v3 h-3 z M54,42 h3 v3 h-3 z
+                          M50,48 h3 v3 h-3 z M54,48 h3 v3 h-3 z" />
+
+    <!-- Modern glowing Chronometer / Clock ring overlay on the right-center (52 to 84 X, 42 to 74 Y) -->
+    <!-- Outer Glow / Accent Ring -->
+    <path
+        android:fillColor="#1A10B981"
+        android:pathData="M66,58m-17,0a17,17 0 1,0 34,0a17,17 0 1,0 -34,0" />
+
+    <!-- Solid Clock Face -->
+    <path
+        android:fillColor="#1E293B"
+        android:strokeColor="#10B981"
+        android:strokeWidth="2.8"
+        android:pathData="M66,58m-14,0a14,14 0 1,0 28,0a14,14 0 1,0 -28,0" />
+
+    <!-- Clock Top Knob (Stopwatch style) -->
+    <path
+        android:fillColor="#10B981"
+        android:pathData="M64,41 h4 v3 h-4 z" />
+
+    <!-- Progress arc on clock (75% completed quota) -->
+    <path
+        android:strokeColor="#3B82F6"
+        android:strokeWidth="2.8"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000"
+        android:pathData="M66,44 A14,14 0 1,1 52,58" />
+
+    <!-- Clock Hands (Showing 8 hours target) -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M66,58 L66,49" />
+    <path
+        android:strokeColor="#10B981"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:pathData="M66,58 L72,62" />
+
+    <!-- Center pin -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M66,58m-1.5,0a1.5,1.5 0 1,0 3,0a1.5,1.5 0 1,0 -3,0" />
+
+    <!-- Checkmark Badge on bottom right -->
+    <path
+        android:fillColor="#10B981"
+        android:pathData="M78,68m-5,0a5,5 0 1,0 10,0a5,5 0 1,0 -10,0" />
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.2"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:fillColor="#00000000"
+        android:pathData="M75,68 L77,70 L81,66" />
+
+</vector>

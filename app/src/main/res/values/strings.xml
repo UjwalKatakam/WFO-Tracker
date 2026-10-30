@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">WFO Tracker</string>
+    <string name="widget_description">Glanceable live punch status, daily progress, and one-tap action</string>
+</resources>

@@ -1,0 +1,6 @@
+{
+  "name": "WFO Tracker",
+  "description": "Work From Office tracker and compliance manager with live chronometer, glanceable home screen widget, passive geofence arrival notifications, departure reminder ('Did you forget to punch out?'), weekend & holiday auto-mute, GitHub Gist sync, and analytics.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
