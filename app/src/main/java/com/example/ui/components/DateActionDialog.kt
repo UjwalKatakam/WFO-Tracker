@@ -1,9 +1,7 @@
 package com.example.ui.components
 
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -12,39 +10,29 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.EventBusy
 import androidx.compose.material.icons.filled.Login
-import androidx.compose.material.icons.filled.Park
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.data.local.CheckInLog
 import com.example.data.local.LeaveHoliday
-import com.example.ui.theme.AmberWarning
-import com.example.ui.theme.BluePrimary
-import com.example.ui.theme.CrimsonDanger
-import com.example.ui.theme.GreenSuccess
-import com.example.ui.theme.PurpleExclusion
+import com.example.ui.theme.AppTheme
+import com.example.ui.theme.SurfaceGroupShape
 import com.example.util.DateUtils
 import java.text.SimpleDateFormat
 import java.util.Locale
@@ -61,11 +49,16 @@ fun DateActionDialog(
     onDeleteLeave: (() -> Unit)? = null,
     onDismiss: () -> Unit
 ) {
-    val parsedDate = DateUtils.parseDate(dateKey)
-    val friendlyDate = SimpleDateFormat("EEEE, MMMM d, yyyy", Locale.US).format(parsedDate)
+    val parsedDate = remember(dateKey) { DateUtils.parseDate(dateKey) }
+    val friendlyDate = remember(parsedDate) {
+        SimpleDateFormat("EEEE, MMMM d, yyyy", Locale.US).format(parsedDate)
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        containerColor = AppTheme.colors.raised,
+        titleContentColor = AppTheme.colors.ink,
+        textContentColor = AppTheme.colors.ink,
         title = {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -74,182 +67,155 @@ fun DateActionDialog(
             ) {
                 Column {
                     Text(
-                        text = "MANAGE DAY",
-                        fontSize = 11.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        letterSpacing = 0.5.sp
+                        text = "Manage day",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = AppTheme.colors.muted
                     )
+                    Spacer(modifier = Modifier.height(2.dp))
                     Text(
                         text = friendlyDate,
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        style = MaterialTheme.typography.titleMedium,
+                        color = AppTheme.colors.ink,
+                        fontWeight = FontWeight.Medium
                     )
                 }
-                IconButton(onClick = onDismiss, modifier = Modifier.size(28.dp)) {
-                    Icon(Icons.Default.Close, contentDescription = "Close")
+                IconButton(onClick = onDismiss, modifier = Modifier.size(40.dp)) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = AppTheme.colors.muted
+                    )
                 }
             }
         },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
-                // Current status box
+                // Current status summary surface
                 Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = when {
-                        leave != null -> PurpleExclusion.copy(alpha = 0.12f)
-                        log != null && log.isValidWFODay(minHours) -> GreenSuccess.copy(alpha = 0.12f)
-                        log != null -> AmberWarning.copy(alpha = 0.12f)
-                        else -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)
-                    },
-                    border = BorderStroke(
-                        1.dp,
-                        when {
-                            leave != null -> PurpleExclusion.copy(alpha = 0.4f)
-                            log != null && log.isValidWFODay(minHours) -> GreenSuccess.copy(alpha = 0.4f)
-                            log != null -> AmberWarning.copy(alpha = 0.4f)
-                            else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-                        }
-                    ),
+                    shape = SurfaceGroupShape,
+                    color = AppTheme.colors.ground,
+                    border = BorderStroke(1.dp, AppTheme.colors.rule),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Column(modifier = Modifier.padding(12.dp)) {
+                    Column(modifier = Modifier.padding(14.dp)) {
                         Text(
-                            text = "CURRENT STATUS",
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = "Current status",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = AppTheme.colors.muted
                         )
-                        Spacer(modifier = Modifier.height(3.dp))
+                        Spacer(modifier = Modifier.height(6.dp))
                         when {
                             leave != null -> {
                                 Text(
-                                    text = "🌴 ${leave.title} (${leave.type.uppercase()})",
-                                    fontSize = 13.5.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = PurpleExclusion
+                                    text = "${leave.title} (${leave.type})",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium,
+                                    color = AppTheme.colors.ink
                                 )
+                                Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = "Working day excluded from monthly WFO quota requirement.",
-                                    fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    text = "Working day excluded from monthly office quota requirement.",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = AppTheme.colors.muted
                                 )
                             }
                             log != null -> {
                                 val isValid = log.isValidWFODay(minHours)
                                 Text(
-                                    text = "🏢 ${DateUtils.formatTime12(log.inTime)} – ${DateUtils.formatTime12(log.outTime)} (${log.formattedDuration})",
-                                    fontSize = 13.5.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = if (isValid) GreenSuccess else AmberWarning
+                                    text = "${DateUtils.formatTime12(log.inTime)} – ${DateUtils.formatTime12(log.outTime)} (${log.formattedDuration})",
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    fontWeight = FontWeight.Medium,
+                                    color = if (isValid) AppTheme.colors.present else AppTheme.colors.short
                                 )
+                                Spacer(modifier = Modifier.height(2.dp))
                                 Text(
-                                    text = if (isValid) "Qualified WFO Day (≥ ${String.format(Locale.US, "%.1f", minHours)}h)" else "Under required ${String.format(Locale.US, "%.1f", minHours)}h target",
-                                    fontSize = 11.sp,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    text = if (isValid) "Qualified office day (at least ${String.format(Locale.US, "%.1f", minHours)}h)" else "Short day (under ${String.format(Locale.US, "%.1f", minHours)}h minimum)",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = AppTheme.colors.muted
                                 )
                             }
                             else -> {
                                 Text(
                                     text = "No activity recorded for this day",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Medium,
-                                    color = MaterialTheme.colorScheme.onSurface
+                                    style = MaterialTheme.typography.bodyLarge,
+                                    color = AppTheme.colors.muted
                                 )
                             }
                         }
                     }
                 }
 
-                Spacer(modifier = Modifier.height(14.dp))
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider(color = AppTheme.colors.rule, thickness = 1.dp)
+                Spacer(modifier = Modifier.height(16.dp))
 
                 Text(
-                    text = "SELECT ACTION",
-                    fontSize = 10.5.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                    text = "Actions",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = AppTheme.colors.muted
                 )
+                Spacer(modifier = Modifier.height(10.dp))
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                // Action 1: Office Attendance
-                Button(
+                // Action 1: Office attendance
+                WfoPrimaryButton(
+                    text = if (log != null) "Edit office attendance" else "Log office attendance",
                     onClick = {
                         onLogAttendanceClick()
                         onDismiss()
                     },
-                    colors = ButtonDefaults.buttonColors(containerColor = BluePrimary),
-                    shape = RoundedCornerShape(10.dp),
+                    icon = if (log != null) Icons.Default.Edit else Icons.Default.Login,
                     modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(
-                        imageVector = if (log != null) Icons.Default.Edit else Icons.Default.Login,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text(if (log != null) "Edit Office Attendance" else "Log Office Attendance (Punch In/Out)")
-                }
+                )
 
                 Spacer(modifier = Modifier.height(8.dp))
 
-                // Action 2: Leave / Holiday
-                OutlinedButton(
+                // Action 2: Leave / holiday
+                WfoTonalButton(
+                    text = if (leave != null) "Edit leave or holiday" else "Log leave or holiday",
                     onClick = {
                         onLogLeaveClick()
                         onDismiss()
                     },
-                    shape = RoundedCornerShape(10.dp),
+                    icon = Icons.Default.EventBusy,
                     modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Default.Park, contentDescription = null, modifier = Modifier.size(18.dp), tint = PurpleExclusion)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("Log Leave / Holiday / WFH", color = PurpleExclusion)
-                }
+                )
 
-                // Delete Options if records exist
+                // Delete options if records exist
                 if (log != null && onDeleteLog != null) {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    OutlinedButton(
+                    Spacer(modifier = Modifier.height(8.dp))
+                    WfoTextButton(
+                        text = "Delete attendance log",
                         onClick = {
                             onDeleteLog()
                             onDismiss()
                         },
-                        shape = RoundedCornerShape(10.dp),
+                        isDanger = true,
+                        icon = Icons.Default.Delete,
                         modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp), tint = CrimsonDanger)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Delete Attendance Log", color = CrimsonDanger, fontSize = 12.sp)
-                    }
+                    )
                 }
 
                 if (leave != null && onDeleteLeave != null) {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    OutlinedButton(
+                    Spacer(modifier = Modifier.height(4.dp))
+                    WfoTextButton(
+                        text = "Remove leave or holiday",
                         onClick = {
                             onDeleteLeave()
                             onDismiss()
                         },
-                        shape = RoundedCornerShape(10.dp),
+                        isDanger = true,
+                        icon = Icons.Default.Delete,
                         modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Icon(Icons.Default.Delete, contentDescription = null, modifier = Modifier.size(16.dp), tint = CrimsonDanger)
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text("Remove Leave / Holiday", color = CrimsonDanger, fontSize = 12.sp)
-                    }
+                    )
                 }
             }
         },
         confirmButton = {},
         dismissButton = {
-            Button(
-                onClick = onDismiss,
-                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-            ) {
-                Text("Close", color = MaterialTheme.colorScheme.onSurface)
-            }
+            WfoTextButton(
+                text = "Close",
+                onClick = onDismiss
+            )
         }
     )
 }

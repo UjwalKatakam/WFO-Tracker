@@ -1,8 +1,10 @@
 package com.example.ui.screens
 
-import android.content.Context
-import android.content.Intent
 import android.location.Location
+import android.net.Uri
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,27 +16,29 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.CloudDownload
 import androidx.compose.material.icons.filled.CloudUpload
 import androidx.compose.material.icons.filled.DeleteForever
+import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.MyLocation
 import androidx.compose.material.icons.filled.PictureAsPdf
-import androidx.compose.material.icons.filled.Save
+import androidx.compose.material.icons.filled.Visibility
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Switch
+import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -44,28 +48,36 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.core.content.FileProvider
-import com.example.data.preferences.WfoSettings
-import com.example.ui.theme.AmberWarning
-import com.example.ui.theme.BluePrimary
-import com.example.ui.theme.CrimsonDanger
-import com.example.ui.theme.GreenSuccess
+import com.example.ui.components.ReportMonthPickerSheet
+import com.example.ui.components.WfoBottomSheet
+import com.example.ui.components.WfoListRow
+import com.example.ui.components.WfoPrimaryButton
+import com.example.ui.components.WfoSectionHeader
+import com.example.ui.components.WfoSwitchRow
+import com.example.ui.components.WfoTextButton
+import com.example.ui.components.WfoTonalButton
+import com.example.ui.components.sharePdfReport
+import com.example.ui.theme.AppTheme
 import com.example.ui.viewmodel.WfoUiState
 import com.example.ui.viewmodel.WfoViewModel
+import com.example.util.DateUtils
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.location.Priority
 import kotlinx.coroutines.launch
-import java.util.Calendar
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(
     uiState: WfoUiState,
@@ -73,54 +85,156 @@ fun SettingsScreen(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
-    val focusManager = LocalFocusManager.current
     val coroutineScope = rememberCoroutineScope()
 
-    var employeeName by remember(uiState.settings.employeeName) { mutableStateOf(uiState.settings.employeeName) }
-    var minHoursStr by remember(uiState.settings.minHours) { mutableStateOf(uiState.settings.minHours.toString()) }
-    var targetDaysStr by remember(uiState.settings.targetDaysPerWeek) { mutableStateOf(uiState.settings.targetDaysPerWeek.toString()) }
-    var shiftStart by remember(uiState.settings.shiftStart) { mutableStateOf(uiState.settings.shiftStart) }
-    var notifyOnTarget by remember(uiState.settings.notifyOnTarget) { mutableStateOf(uiState.settings.notifyOnTarget) }
-
-    var latStr by remember(uiState.settings.lat) { mutableStateOf(uiState.settings.lat.toString()) }
-    var lonStr by remember(uiState.settings.lon) { mutableStateOf(uiState.settings.lon.toString()) }
-    var radiusStr by remember(uiState.settings.radiusKm) { mutableStateOf(uiState.settings.radiusKm.toString()) }
-    var gpsVerificationEnabled by remember(uiState.settings.gpsVerificationEnabled) { mutableStateOf(uiState.settings.gpsVerificationEnabled) }
-    var passiveGeofenceArrivalEnabled by remember(uiState.settings.passiveGeofenceArrivalEnabled) { mutableStateOf(uiState.settings.passiveGeofenceArrivalEnabled) }
-    var departureReminderEnabled by remember(uiState.settings.departureReminderEnabled) { mutableStateOf(uiState.settings.departureReminderEnabled) }
-    var departureReminderHoursStr by remember(uiState.settings.departureReminderHours) { mutableStateOf(uiState.settings.departureReminderHours.toString()) }
-    var autoMuteHolidays by remember(uiState.settings.autoMuteHolidays) { mutableStateOf(uiState.settings.autoMuteHolidays) }
-
-    var gitToken by remember(uiState.settings.gitToken) { mutableStateOf(uiState.settings.gitToken) }
-    var gistId by remember(uiState.settings.gistId) { mutableStateOf(uiState.settings.gistId) }
-
+    // Sub-sheet states
+    var showEditPolicySheet by remember { mutableStateOf(false) }
+    var showEditLocationSheet by remember { mutableStateOf(false) }
+    var showEditTokenSheet by remember { mutableStateOf(false) }
+    var showEditGistIdSheet by remember { mutableStateOf(false) }
+    var showReportMonthPicker by remember { mutableStateOf(false) }
     var showClearDataDialog by remember { mutableStateOf(false) }
-    var isFetchingGps by remember { mutableStateOf(false) }
 
+    // SAF Document Launchers for JSON File Backup & Restore
+    val exportJsonLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.CreateDocument("application/json")
+    ) { uri: Uri? ->
+        if (uri != null) {
+            coroutineScope.launch {
+                try {
+                    val jsonStr = viewModel.exportJsonString()
+                    context.contentResolver.openOutputStream(uri)?.use { out ->
+                        out.write(jsonStr.toByteArray(Charsets.UTF_8))
+                    }
+                } catch (_: Exception) {}
+            }
+        }
+    }
+
+    val importJsonLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            coroutineScope.launch {
+                try {
+                    val stream = context.contentResolver.openInputStream(uri)
+                    if (stream != null) {
+                        val reader = BufferedReader(InputStreamReader(stream))
+                        val content = reader.readText()
+                        reader.close()
+                        viewModel.importJsonString(content)
+                    }
+                } catch (_: Exception) {}
+            }
+        }
+    }
+
+    // Danger Zone Confirmation Dialog
     if (showClearDataDialog) {
         AlertDialog(
             onDismissRequest = { showClearDataDialog = false },
-            icon = { Icon(Icons.Default.DeleteForever, contentDescription = null, tint = CrimsonDanger) },
-            title = { Text("Danger Zone: Clear All Data") },
-            text = { Text("This will permanently wipe all local attendance records, leaves, and settings. This cannot be undone.") },
+            shape = RoundedCornerShape(12.dp),
+            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            title = {
+                Text(
+                    text = "Clear local data?",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = AppTheme.colors.ink,
+                    fontWeight = FontWeight.Medium
+                )
+            },
+            text = {
+                Text(
+                    text = "This will permanently delete all local check-in records and leaves from this device.\n\nYour remote backup on GitHub Gist (if configured) will not be deleted. You can export a local backup file first if you wish.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = AppTheme.colors.muted
+                )
+            },
             confirmButton = {
-                Button(
+                WfoTextButton(
+                    text = "Clear data",
+                    isDanger = true,
                     onClick = {
                         viewModel.clearAllData()
                         showClearDataDialog = false
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = CrimsonDanger)
-                ) {
-                    Text("Permanently Clear Everything")
-                }
+                    }
+                )
             },
             dismissButton = {
-                Button(
-                    onClick = { showClearDataDialog = false },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    Text("Cancel", color = MaterialTheme.colorScheme.onSurface)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    WfoTextButton(
+                        text = "Export backup first",
+                        onClick = {
+                            showClearDataDialog = false
+                            exportJsonLauncher.launch("WFO_Backup_${DateUtils.todayDateStr()}.json")
+                        }
+                    )
+                    WfoTextButton(
+                        text = "Cancel",
+                        onClick = { showClearDataDialog = false }
+                    )
                 }
+            }
+        )
+    }
+
+    // Sub-sheet: Attendance Policy Editor
+    if (showEditPolicySheet) {
+        EditPolicySheet(
+            settings = uiState.settings,
+            onDismissRequest = { showEditPolicySheet = false },
+            onSave = { updatedSettings ->
+                viewModel.updateSettings(updatedSettings)
+                showEditPolicySheet = false
+            }
+        )
+    }
+
+    // Sub-sheet: Office Location Editor
+    if (showEditLocationSheet) {
+        EditLocationSheet(
+            settings = uiState.settings,
+            onDismissRequest = { showEditLocationSheet = false },
+            onSave = { updatedSettings ->
+                viewModel.updateSettings(updatedSettings)
+                showEditLocationSheet = false
+            }
+        )
+    }
+
+    // Sub-sheet: GitHub Token Editor
+    if (showEditTokenSheet) {
+        EditTokenSheet(
+            currentToken = uiState.settings.gitToken,
+            onDismissRequest = { showEditTokenSheet = false },
+            onSave = { token ->
+                viewModel.updateSettings(uiState.settings.copy(gitToken = token))
+                showEditTokenSheet = false
+            }
+        )
+    }
+
+    // Sub-sheet: Gist ID Editor
+    if (showEditGistIdSheet) {
+        EditGistIdSheet(
+            currentGistId = uiState.settings.gistId,
+            onDismissRequest = { showEditGistIdSheet = false },
+            onSave = { gistId ->
+                viewModel.updateSettings(uiState.settings.copy(gistId = gistId))
+                showEditGistIdSheet = false
+            }
+        )
+    }
+
+    // Sub-sheet: Monthly Audit Report Picker
+    if (showReportMonthPicker) {
+        ReportMonthPickerSheet(
+            initialYear = uiState.dashboardNavYear,
+            initialMonth = uiState.dashboardNavMonth,
+            onDismissRequest = { showReportMonthPicker = false },
+            onConfirm = { year, month ->
+                val pdfFile = viewModel.generatePdfReport(context, year, month)
+                sharePdfReport(context, pdfFile)
             }
         )
     }
@@ -128,501 +242,675 @@ fun SettingsScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
+            .background(AppTheme.colors.ground)
             .verticalScroll(rememberScrollState())
-            .padding(16.dp)
+            .padding(vertical = 12.dp)
     ) {
-        Text(
-            text = "⚙️ WORKPLACE & COMPLIANCE SETTINGS",
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            letterSpacing = 0.5.sp
+        // --------------------------------------------------------------------
+        // 1. Attendance Policy Section
+        // --------------------------------------------------------------------
+        WfoSectionHeader(title = "Attendance policy")
+
+        WfoListRow(
+            title = "Name",
+            subtitle = uiState.settings.employeeName.ifBlank { "Not configured" },
+            trailingContent = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    tint = AppTheme.colors.muted,
+                    modifier = Modifier.size(16.dp)
+                )
+            },
+            onClick = { showEditPolicySheet = true }
         )
-        Text(
-            text = "Configure work policies, notifications, GPS geofencing, and cloud sync.",
-            fontSize = 12.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(top = 2.dp, bottom = 14.dp)
+
+        WfoListRow(
+            title = "Daily target",
+            subtitle = "${String.format(Locale.US, "%.1f", uiState.settings.minHours)} hours",
+            trailingContent = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    tint = AppTheme.colors.muted,
+                    modifier = Modifier.size(16.dp)
+                )
+            },
+            onClick = { showEditPolicySheet = true }
         )
 
-        // 1. Corporate Policy Card
-        Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            shape = MaterialTheme.shapes.medium,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "Corporate WFO Policy",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
+        WfoListRow(
+            title = "Weekly target",
+            subtitle = "${uiState.settings.targetDaysPerWeek} days a week",
+            trailingContent = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    tint = AppTheme.colors.muted,
+                    modifier = Modifier.size(16.dp)
                 )
-                Spacer(modifier = Modifier.height(10.dp))
+            },
+            onClick = { showEditPolicySheet = true }
+        )
 
-                OutlinedTextField(
-                    value = employeeName,
-                    onValueChange = { employeeName = it },
-                    label = { Text("Employee / User Name") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                    modifier = Modifier.fillMaxWidth()
+        WfoListRow(
+            title = "Expected shift start",
+            subtitle = uiState.settings.shiftStart,
+            trailingContent = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    tint = AppTheme.colors.muted,
+                    modifier = Modifier.size(16.dp)
                 )
+            },
+            onClick = { showEditPolicySheet = true }
+        )
 
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    OutlinedTextField(
-                        value = minHoursStr,
-                        onValueChange = { minHoursStr = it },
-                        label = { Text("Min Hours / Day") },
-                        placeholder = { Text("8.0") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next),
-                        modifier = Modifier.weight(1f)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    OutlinedTextField(
-                        value = targetDaysStr,
-                        onValueChange = { targetDaysStr = it },
-                        label = { Text("Target Days / Week") },
-                        placeholder = { Text("3") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                OutlinedTextField(
-                    value = shiftStart,
-                    onValueChange = { shiftStart = it },
-                    label = { Text("Expected Shift Start (HH:MM)") },
-                    placeholder = { Text("12:00") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Daily Quota Target Notification",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            text = "Trigger audible ringtone & alert when min hours reached",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Switch(
-                        checked = notifyOnTarget,
-                        onCheckedChange = { notifyOnTarget = it }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                // Departure Reminder: Did you forget to punch out?
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Daily Departure Reminder",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            text = "Alerts if timer runs past departure threshold ('Did you forget to punch out?')",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Switch(
-                        checked = departureReminderEnabled,
-                        onCheckedChange = { departureReminderEnabled = it }
-                    )
-                }
-
-                if (departureReminderEnabled) {
-                    Spacer(modifier = Modifier.height(6.dp))
-                    OutlinedTextField(
-                        value = departureReminderHoursStr,
-                        onValueChange = { departureReminderHoursStr = it },
-                        label = { Text("Departure Alert Threshold (Hours Active)") },
-                        placeholder = { Text("9.0") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
-                        keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                }
+        WfoSwitchRow(
+            title = "Target reached alert",
+            subtitle = "Audible alert when daily target is met",
+            checked = uiState.settings.notifyOnTarget,
+            onCheckedChange = { checked ->
+                viewModel.updateSettings(uiState.settings.copy(notifyOnTarget = checked))
             }
-        }
+        )
 
-        Spacer(modifier = Modifier.height(14.dp))
-
-        // 2. Office Geofence Card
-        Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            shape = MaterialTheme.shapes.medium,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Office GPS Geofencing",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    OutlinedButton(
-                        onClick = {
-                            isFetchingGps = true
-                            try {
-                                val client = LocationServices.getFusedLocationProviderClient(context)
-                                client.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
-                                    .addOnSuccessListener { loc: Location? ->
-                                        isFetchingGps = false
-                                        if (loc != null) {
-                                            latStr = String.format(java.util.Locale.US, "%.5f", loc.latitude)
-                                            lonStr = String.format(java.util.Locale.US, "%.5f", loc.longitude)
-                                        }
-                                    }
-                                    .addOnFailureListener { isFetchingGps = false }
-                            } catch (e: SecurityException) {
-                                isFetchingGps = false
-                            }
-                        }
-                    ) {
-                        if (isFetchingGps) {
-                            CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
-                        } else {
-                            Icon(Icons.Default.MyLocation, contentDescription = null, modifier = Modifier.size(14.dp))
-                        }
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Set Current GPS", fontSize = 11.sp)
-                    }
-                }
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Row(modifier = Modifier.fillMaxWidth()) {
-                    OutlinedTextField(
-                        value = latStr,
-                        onValueChange = { latStr = it },
-                        label = { Text("Latitude") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next),
-                        modifier = Modifier.weight(1f)
-                    )
-                    Spacer(modifier = Modifier.width(8.dp))
-                    OutlinedTextField(
-                        value = lonStr,
-                        onValueChange = { lonStr = it },
-                        label = { Text("Longitude") },
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next),
-                        modifier = Modifier.weight(1f)
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                OutlinedTextField(
-                    value = radiusStr,
-                    onValueChange = { radiusStr = it },
-                    label = { Text("Allowed Office Radius (km)") },
-                    placeholder = { Text("0.5") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Verify Location on Punch-In",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            text = "Warn if device is outside allowed office perimeter",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Switch(
-                        checked = gpsVerificationEnabled,
-                        onCheckedChange = { gpsVerificationEnabled = it }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Passive Geofence Arrival Notifications",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            text = "Alerts on office arrival. Never auto-adds transit offsets; always prompts you first.",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Switch(
-                        checked = passiveGeofenceArrivalEnabled,
-                        onCheckedChange = { passiveGeofenceArrivalEnabled = it }
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(12.dp))
-
-                // Holiday & Weekend Auto-Mute
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = "Holiday & Weekend Auto-Mute",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                        Text(
-                            text = "Suppresses arrival geofence alerts on weekends and approved holidays",
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                    }
-                    Switch(
-                        checked = autoMuteHolidays,
-                        onCheckedChange = { autoMuteHolidays = it }
-                    )
-                }
+        WfoSwitchRow(
+            title = "Departure reminder",
+            subtitle = "Alert if timer runs past departure threshold",
+            checked = uiState.settings.departureReminderEnabled,
+            onCheckedChange = { checked ->
+                viewModel.updateSettings(uiState.settings.copy(departureReminderEnabled = checked))
             }
-        }
+        )
 
-        Spacer(modifier = Modifier.height(14.dp))
-
-        // 3. GitHub Gist Cloud Sync Card
-        Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            shape = MaterialTheme.shapes.medium,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "GitHub Gist Cloud Sync",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = "Seamless two-way cloud synchronization between devices via a private GitHub Gist.",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 2.dp, bottom = 10.dp)
-                )
-
-                OutlinedTextField(
-                    value = gitToken,
-                    onValueChange = { gitToken = it },
-                    label = { Text("Personal Access Token (PAT)") },
-                    placeholder = { Text("ghp_xxxxxxxxxxxx") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(8.dp))
-
-                OutlinedTextField(
-                    value = gistId,
-                    onValueChange = { gistId = it },
-                    label = { Text("Gist ID (leave empty to auto-create on first push)") },
-                    placeholder = { Text("e.g. 7f8a9b2c3d...") },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Spacer(modifier = Modifier.height(10.dp))
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Button(
-                        onClick = { viewModel.pushToCloud() },
-                        enabled = !uiState.isSyncingCloud,
-                        colors = ButtonDefaults.buttonColors(containerColor = BluePrimary),
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        if (uiState.isSyncingCloud) {
-                            CircularProgressIndicator(modifier = Modifier.size(16.dp), color = Color.White, strokeWidth = 2.dp)
-                        } else {
-                            Icon(Icons.Default.CloudUpload, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Push to Cloud", fontSize = 12.sp)
-                        }
-                    }
-
-                    OutlinedButton(
-                        onClick = { viewModel.pullFromCloud() },
-                        enabled = !uiState.isSyncingCloud,
-                        modifier = Modifier.weight(1f)
-                    ) {
-                        Icon(Icons.Default.CloudDownload, contentDescription = null, modifier = Modifier.size(16.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Pull & Merge", fontSize = 12.sp)
-                    }
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(14.dp))
-
-        // 4. Monthly PDF Audit Report Card
-        Card(
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-            shape = MaterialTheme.shapes.medium,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(16.dp)) {
-                Text(
-                    text = "📄 Monthly Compliance Audit Report",
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-                Text(
-                    text = "Generate a formal A4 attendance compliance report PDF with verification badge, statistics table, check-in history, and signature lines for HR or management.",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 2.dp, bottom = 10.dp)
-                )
-
-                Button(
-                    onClick = {
-                        val cal = Calendar.getInstance()
-                        val pdfFile = viewModel.generatePdfReport(
-                            context = context,
-                            year = uiState.dashboardNavYear,
-                            month = uiState.dashboardNavMonth
-                        )
-                        sharePdfFile(context, pdfFile)
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = GreenSuccess),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Icon(Icons.Default.PictureAsPdf, contentDescription = null, modifier = Modifier.size(18.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Generate & Share Monthly Audit PDF", fontWeight = FontWeight.Bold)
-                }
-            }
+        if (uiState.settings.departureReminderEnabled) {
+            WfoListRow(
+                title = "Departure alert threshold",
+                subtitle = "${String.format(Locale.US, "%.1f", uiState.settings.departureReminderHours)} hours active",
+                trailingContent = {
+                    Icon(
+                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                        contentDescription = null,
+                        tint = AppTheme.colors.muted,
+                        modifier = Modifier.size(16.dp)
+                    )
+                },
+                onClick = { showEditPolicySheet = true }
+            )
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        // Save Settings Action Button
-        Button(
-            onClick = {
-                val newSettings = WfoSettings(
-                    employeeName = employeeName.trim(),
-                    minHours = minHoursStr.toDoubleOrNull() ?: 8.0,
-                    targetDaysPerWeek = targetDaysStr.toIntOrNull() ?: 3,
-                    shiftStart = shiftStart.trim(),
-                    notifyOnTarget = notifyOnTarget,
-                    lat = latStr.toDoubleOrNull() ?: 12.9716,
-                    lon = lonStr.toDoubleOrNull() ?: 77.5946,
-                    radiusKm = radiusStr.toDoubleOrNull() ?: 0.5,
-                    gpsVerificationEnabled = gpsVerificationEnabled,
-                    passiveGeofenceArrivalEnabled = passiveGeofenceArrivalEnabled,
-                    departureReminderEnabled = departureReminderEnabled,
-                    departureReminderHours = departureReminderHoursStr.toDoubleOrNull() ?: 9.0,
-                    autoMuteHolidays = autoMuteHolidays,
-                    gitToken = gitToken.trim(),
-                    gistId = gistId.trim()
+        // --------------------------------------------------------------------
+        // 2. Office Location Section
+        // --------------------------------------------------------------------
+        WfoSectionHeader(title = "Office location")
+
+        WfoSwitchRow(
+            title = "Verify location on punch in",
+            subtitle = "Warn if device is outside allowed office perimeter",
+            checked = uiState.settings.gpsVerificationEnabled,
+            onCheckedChange = { checked ->
+                viewModel.updateSettings(uiState.settings.copy(gpsVerificationEnabled = checked))
+            }
+        )
+
+        WfoSwitchRow(
+            title = "Arrival notifications",
+            subtitle = "Prompt to punch in when arriving at the office",
+            checked = uiState.settings.passiveGeofenceArrivalEnabled,
+            onCheckedChange = { checked ->
+                viewModel.updateSettings(uiState.settings.copy(passiveGeofenceArrivalEnabled = checked))
+            }
+        )
+
+        WfoSwitchRow(
+            title = "Mute on holidays and weekends",
+            subtitle = "Suppress arrival alerts on non-working days",
+            checked = uiState.settings.autoMuteHolidays,
+            onCheckedChange = { checked ->
+                viewModel.updateSettings(uiState.settings.copy(autoMuteHolidays = checked))
+            }
+        )
+
+        WfoListRow(
+            title = "Office coordinates",
+            subtitle = String.format(Locale.US, "%.5f, %.5f", uiState.settings.lat, uiState.settings.lon),
+            trailingContent = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    tint = AppTheme.colors.muted,
+                    modifier = Modifier.size(16.dp)
                 )
-                viewModel.updateSettings(newSettings)
             },
-            colors = ButtonDefaults.buttonColors(containerColor = BluePrimary),
+            onClick = { showEditLocationSheet = true }
+        )
+
+        WfoListRow(
+            title = "Allowed radius",
+            subtitle = "${String.format(Locale.US, "%.2f", uiState.settings.radiusKm)} km",
+            trailingContent = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    tint = AppTheme.colors.muted,
+                    modifier = Modifier.size(16.dp)
+                )
+            },
+            onClick = { showEditLocationSheet = true }
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // --------------------------------------------------------------------
+        // 3. Cloud Sync Section
+        // --------------------------------------------------------------------
+        WfoSectionHeader(title = "Cloud sync")
+
+        WfoListRow(
+            title = "Personal access token",
+            subtitle = if (uiState.settings.gitToken.isNotBlank()) "Configured (tap to change)" else "Not configured",
+            trailingContent = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    tint = AppTheme.colors.muted,
+                    modifier = Modifier.size(16.dp)
+                )
+            },
+            onClick = { showEditTokenSheet = true }
+        )
+
+        WfoListRow(
+            title = "Gist ID",
+            subtitle = if (uiState.settings.gistId.isNotBlank()) uiState.settings.gistId else "Auto-created on first sync",
+            trailingContent = {
+                Icon(
+                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                    contentDescription = null,
+                    tint = AppTheme.colors.muted,
+                    modifier = Modifier.size(16.dp)
+                )
+            },
+            onClick = { showEditGistIdSheet = true }
+        )
+
+        Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .height(48.dp)
-                .testTag("save_settings_button")
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            Icon(Icons.Default.Save, contentDescription = null, modifier = Modifier.size(18.dp))
-            Spacer(modifier = Modifier.width(6.dp))
-            Text("SAVE CONFIGURATION", fontWeight = FontWeight.Bold)
+            WfoTonalButton(
+                text = if (uiState.isSyncingCloud) "Syncing..." else "Push to cloud",
+                icon = if (!uiState.isSyncingCloud) Icons.Default.CloudUpload else null,
+                onClick = { viewModel.pushToCloud() },
+                enabled = !uiState.isSyncingCloud,
+                modifier = Modifier.weight(1f)
+            )
+
+            WfoTonalButton(
+                text = "Pull and merge",
+                icon = if (!uiState.isSyncingCloud) Icons.Default.CloudDownload else null,
+                onClick = { viewModel.pullFromCloud() },
+                enabled = !uiState.isSyncingCloud,
+                modifier = Modifier.weight(1f)
+            )
         }
 
-        Spacer(modifier = Modifier.height(20.dp))
+        Spacer(modifier = Modifier.height(16.dp))
 
-        // Danger Zone
-        OutlinedButton(
-            onClick = { showClearDataDialog = true },
-            colors = ButtonDefaults.outlinedButtonColors(contentColor = CrimsonDanger),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Icon(Icons.Default.DeleteForever, contentDescription = null, modifier = Modifier.size(16.dp))
-            Spacer(modifier = Modifier.width(6.dp))
-            Text("Clear All Local Data (Danger Zone)")
-        }
+        // --------------------------------------------------------------------
+        // 4. Audit Report Section
+        // --------------------------------------------------------------------
+        WfoSectionHeader(title = "Audit report")
 
-        Spacer(modifier = Modifier.height(24.dp))
-    }
-}
-
-private fun sharePdfFile(context: Context, file: java.io.File) {
-    try {
-        val uri = FileProvider.getUriForFile(
-            context,
-            "com.aistudio.wfotracker.uqznv.fileprovider",
-            file
+        WfoListRow(
+            title = "Monthly compliance report",
+            subtitle = "Generate attendance report PDF for HR or records",
+            trailingContent = {
+                Icon(
+                    imageVector = Icons.Default.PictureAsPdf,
+                    contentDescription = null,
+                    tint = AppTheme.colors.muted,
+                    modifier = Modifier.size(20.dp)
+                )
+            },
+            onClick = { showReportMonthPicker = true }
         )
-        val intent = Intent(Intent.ACTION_SEND).apply {
-            type = "application/pdf"
-            putExtra(Intent.EXTRA_STREAM, uri)
-            putExtra(Intent.EXTRA_SUBJECT, "WFO Monthly Compliance Audit Report")
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
-        context.startActivity(Intent.createChooser(intent, "Share Compliance Audit PDF"))
-    } catch (e: Exception) {
-        // Handled
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // --------------------------------------------------------------------
+        // 5. Data & Backup Section
+        // --------------------------------------------------------------------
+        WfoSectionHeader(title = "Data & backup")
+
+        WfoListRow(
+            title = "Export JSON backup",
+            subtitle = "Save attendance records and leaves as a file",
+            trailingContent = {
+                Icon(
+                    imageVector = Icons.Default.FileDownload,
+                    contentDescription = null,
+                    tint = AppTheme.colors.muted,
+                    modifier = Modifier.size(18.dp)
+                )
+            },
+            onClick = {
+                exportJsonLauncher.launch("WFO_Backup_${DateUtils.todayDateStr()}.json")
+            }
+        )
+
+        WfoListRow(
+            title = "Import JSON backup",
+            subtitle = "Restore or merge records from a JSON file",
+            trailingContent = {
+                Icon(
+                    imageVector = Icons.Default.FileUpload,
+                    contentDescription = null,
+                    tint = AppTheme.colors.muted,
+                    modifier = Modifier.size(18.dp)
+                )
+            },
+            onClick = {
+                importJsonLauncher.launch(arrayOf("application/json", "*/*"))
+            }
+        )
+
+        WfoListRow(
+            title = "Clear local data",
+            subtitle = "Delete local attendance records and leave data",
+            isDanger = true,
+            trailingContent = {
+                Icon(
+                    imageVector = Icons.Default.DeleteForever,
+                    contentDescription = null,
+                    tint = AppTheme.colors.danger,
+                    modifier = Modifier.size(18.dp)
+                )
+            },
+            onClick = { showClearDataDialog = true }
+        )
+
+        Spacer(modifier = Modifier.height(32.dp))
     }
 }
+
+// ============================================================================
+// Sub-sheet Composables
+// ============================================================================
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EditPolicySheet(
+    settings: com.example.data.preferences.WfoSettings,
+    onDismissRequest: () -> Unit,
+    onSave: (com.example.data.preferences.WfoSettings) -> Unit
+) {
+    val focusManager = LocalFocusManager.current
+
+    var name by remember { mutableStateOf(settings.employeeName) }
+    var minHoursStr by remember { mutableStateOf(settings.minHours.toString()) }
+    var targetDaysStr by remember { mutableStateOf(settings.targetDaysPerWeek.toString()) }
+    var shiftStart by remember { mutableStateOf(settings.shiftStart) }
+    var departureHoursStr by remember { mutableStateOf(settings.departureReminderHours.toString()) }
+
+    WfoBottomSheet(
+        title = "Attendance policy",
+        onDismissRequest = onDismissRequest
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            OutlinedTextField(
+                value = name,
+                onValueChange = { name = it },
+                label = { Text("Name", style = MaterialTheme.typography.bodySmall) },
+                singleLine = true,
+                colors = textFieldColors(),
+                shape = RoundedCornerShape(12.dp),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = minHoursStr,
+                    onValueChange = { minHoursStr = it },
+                    label = { Text("Daily target (hours)", style = MaterialTheme.typography.bodySmall) },
+                    placeholder = { Text("8.0") },
+                    singleLine = true,
+                    colors = textFieldColors(),
+                    shape = RoundedCornerShape(12.dp),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next),
+                    modifier = Modifier.weight(1f)
+                )
+
+                OutlinedTextField(
+                    value = targetDaysStr,
+                    onValueChange = { targetDaysStr = it },
+                    label = { Text("Weekly target (days)", style = MaterialTheme.typography.bodySmall) },
+                    placeholder = { Text("3") },
+                    singleLine = true,
+                    colors = textFieldColors(),
+                    shape = RoundedCornerShape(12.dp),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = shiftStart,
+                onValueChange = { shiftStart = it },
+                label = { Text("Expected shift start", style = MaterialTheme.typography.bodySmall) },
+                placeholder = { Text("12:00") },
+                singleLine = true,
+                colors = textFieldColors(),
+                shape = RoundedCornerShape(12.dp),
+                keyboardOptions = KeyboardOptions(imeAction = if (settings.departureReminderEnabled) ImeAction.Next else ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            if (settings.departureReminderEnabled) {
+                Spacer(modifier = Modifier.height(12.dp))
+                OutlinedTextField(
+                    value = departureHoursStr,
+                    onValueChange = { departureHoursStr = it },
+                    label = { Text("Departure alert threshold (hours active)", style = MaterialTheme.typography.bodySmall) },
+                    placeholder = { Text("9.0") },
+                    singleLine = true,
+                    colors = textFieldColors(),
+                    shape = RoundedCornerShape(12.dp),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            WfoPrimaryButton(
+                text = "Save policy",
+                onClick = {
+                    val updated = settings.copy(
+                        employeeName = name.trim(),
+                        minHours = minHoursStr.toDoubleOrNull() ?: settings.minHours,
+                        targetDaysPerWeek = targetDaysStr.toIntOrNull() ?: settings.targetDaysPerWeek,
+                        shiftStart = shiftStart.trim(),
+                        departureReminderHours = departureHoursStr.toDoubleOrNull() ?: settings.departureReminderHours
+                    )
+                    onSave(updated)
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EditLocationSheet(
+    settings: com.example.data.preferences.WfoSettings,
+    onDismissRequest: () -> Unit,
+    onSave: (com.example.data.preferences.WfoSettings) -> Unit
+) {
+    val context = LocalContext.current
+    val focusManager = LocalFocusManager.current
+
+    var latStr by remember { mutableStateOf(String.format(Locale.US, "%.5f", settings.lat)) }
+    var lonStr by remember { mutableStateOf(String.format(Locale.US, "%.5f", settings.lon)) }
+    var radiusStr by remember { mutableStateOf(settings.radiusKm.toString()) }
+    var isFetchingGps by remember { mutableStateOf(false) }
+
+    WfoBottomSheet(
+        title = "Office location",
+        onDismissRequest = onDismissRequest
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            WfoTonalButton(
+                text = if (isFetchingGps) "Fetching coordinates..." else "Set to current location",
+                icon = if (!isFetchingGps) Icons.Default.MyLocation else null,
+                onClick = {
+                    isFetchingGps = true
+                    try {
+                        val client = LocationServices.getFusedLocationProviderClient(context)
+                        client.getCurrentLocation(Priority.PRIORITY_HIGH_ACCURACY, null)
+                            .addOnSuccessListener { loc: Location? ->
+                                isFetchingGps = false
+                                if (loc != null) {
+                                    latStr = String.format(Locale.US, "%.5f", loc.latitude)
+                                    lonStr = String.format(Locale.US, "%.5f", loc.longitude)
+                                }
+                            }
+                            .addOnFailureListener { isFetchingGps = false }
+                    } catch (_: SecurityException) {
+                        isFetchingGps = false
+                    }
+                },
+                enabled = !isFetchingGps,
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedTextField(
+                    value = latStr,
+                    onValueChange = { latStr = it },
+                    label = { Text("Latitude", style = MaterialTheme.typography.bodySmall) },
+                    singleLine = true,
+                    colors = textFieldColors(),
+                    shape = RoundedCornerShape(12.dp),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next),
+                    modifier = Modifier.weight(1f)
+                )
+
+                OutlinedTextField(
+                    value = lonStr,
+                    onValueChange = { lonStr = it },
+                    label = { Text("Longitude", style = MaterialTheme.typography.bodySmall) },
+                    singleLine = true,
+                    colors = textFieldColors(),
+                    shape = RoundedCornerShape(12.dp),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next),
+                    modifier = Modifier.weight(1f)
+                )
+            }
+
+            Spacer(modifier = Modifier.height(12.dp))
+
+            OutlinedTextField(
+                value = radiusStr,
+                onValueChange = { radiusStr = it },
+                label = { Text("Allowed radius (km)", style = MaterialTheme.typography.bodySmall) },
+                placeholder = { Text("0.5") },
+                singleLine = true,
+                colors = textFieldColors(),
+                shape = RoundedCornerShape(12.dp),
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            WfoPrimaryButton(
+                text = "Save location",
+                onClick = {
+                    val updated = settings.copy(
+                        lat = latStr.toDoubleOrNull() ?: settings.lat,
+                        lon = lonStr.toDoubleOrNull() ?: settings.lon,
+                        radiusKm = radiusStr.toDoubleOrNull() ?: settings.radiusKm
+                    )
+                    onSave(updated)
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EditTokenSheet(
+    currentToken: String,
+    onDismissRequest: () -> Unit,
+    onSave: (String) -> Unit
+) {
+    val focusManager = LocalFocusManager.current
+    var token by remember { mutableStateOf(currentToken) }
+    var showToken by remember { mutableStateOf(false) }
+
+    WfoBottomSheet(
+        title = "Personal access token",
+        onDismissRequest = onDismissRequest
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            Text(
+                text = "Enter a GitHub token with the 'gist' scope to sync your attendance across devices.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = AppTheme.colors.muted
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            OutlinedTextField(
+                value = token,
+                onValueChange = { token = it },
+                label = { Text("GitHub token", style = MaterialTheme.typography.bodySmall) },
+                placeholder = { Text("ghp_xxxxxxxxxxxx") },
+                singleLine = true,
+                visualTransformation = if (showToken) VisualTransformation.None else PasswordVisualTransformation(),
+                trailingIcon = {
+                    IconButton(
+                        onClick = { showToken = !showToken },
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = if (showToken) Icons.Default.VisibilityOff else Icons.Default.Visibility,
+                            contentDescription = if (showToken) "Hide token" else "Show token",
+                            tint = AppTheme.colors.muted
+                        )
+                    }
+                },
+                colors = textFieldColors(),
+                shape = RoundedCornerShape(12.dp),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Password,
+                    autoCorrect = false,
+                    imeAction = ImeAction.Done
+                ),
+                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            WfoPrimaryButton(
+                text = "Save token",
+                onClick = {
+                    onSave(token.trim())
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun EditGistIdSheet(
+    currentGistId: String,
+    onDismissRequest: () -> Unit,
+    onSave: (String) -> Unit
+) {
+    val focusManager = LocalFocusManager.current
+    var gistId by remember { mutableStateOf(currentGistId) }
+
+    WfoBottomSheet(
+        title = "Gist ID",
+        onDismissRequest = onDismissRequest
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+        ) {
+            Text(
+                text = "Leave empty to automatically create a private Gist on your first push, or paste an existing Gist ID.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = AppTheme.colors.muted
+            )
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            OutlinedTextField(
+                value = gistId,
+                onValueChange = { gistId = it },
+                label = { Text("Gist ID", style = MaterialTheme.typography.bodySmall) },
+                placeholder = { Text("e.g. 7f8a9b2c3d...") },
+                singleLine = true,
+                colors = textFieldColors(),
+                shape = RoundedCornerShape(12.dp),
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            WfoPrimaryButton(
+                text = "Save Gist ID",
+                onClick = {
+                    onSave(gistId.trim())
+                },
+                modifier = Modifier.fillMaxWidth()
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun textFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedContainerColor = AppTheme.colors.raised,
+    unfocusedContainerColor = AppTheme.colors.raised,
+    focusedBorderColor = AppTheme.colors.present,
+    unfocusedBorderColor = AppTheme.colors.rule,
+    focusedTextColor = AppTheme.colors.ink,
+    unfocusedTextColor = AppTheme.colors.ink,
+    focusedLabelColor = AppTheme.colors.present,
+    unfocusedLabelColor = AppTheme.colors.muted
+)

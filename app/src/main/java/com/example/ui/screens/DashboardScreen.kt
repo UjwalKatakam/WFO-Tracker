@@ -1,150 +1,264 @@
 package com.example.ui.screens
 
 import android.content.Context
+import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BatteryAlert
-import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.History
-import androidx.compose.material.icons.filled.HistoryToggleOff
-import androidx.compose.material.icons.filled.Info
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.LocationOn
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Warning
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.testTag
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.data.local.CheckInLog
 import com.example.data.local.LeaveHoliday
-import com.example.ui.components.ArrivalHistogramCard
-import com.example.ui.components.CircularProgressTimer
-import com.example.ui.components.DailyStatusTimelineCard
+import com.example.ui.components.ArrivedEarlierBottomSheet
+import com.example.ui.components.DashboardArrivalHistogram
+import com.example.ui.components.DashboardHeroQuota
+import com.example.ui.components.DashboardPunchControl
+import com.example.ui.components.DashboardThisWeek
+import com.example.ui.components.DashboardWeeklyHoursTrend
 import com.example.ui.components.DateActionDialog
-import com.example.ui.components.DateTimePickerField
-import com.example.ui.components.ForgotPunchInDialog
-import com.example.ui.components.HoursTrendCard
 import com.example.ui.components.LeavesManagementDialog
 import com.example.ui.components.ManualLogDialog
 import com.example.ui.components.ManualLogTab
-import com.example.ui.components.MonthCalendarCard
-import com.example.ui.components.PunchInWithNoteDialog
-import com.example.ui.components.TimerQuickActionMenuDialog
 import com.example.ui.components.WeeklyStreakBreakdownDialog
-import com.example.ui.components.showNativeTimePicker
-import com.example.ui.theme.AmberWarning
-import com.example.ui.theme.BluePrimary
-import com.example.ui.theme.CrimsonDanger
-import com.example.ui.theme.GreenSuccess
-import com.example.ui.theme.PurpleExclusion
+import com.example.ui.components.WfoChip
+import com.example.ui.components.WfoListRow
+import com.example.ui.components.WfoPrimaryButton
+import com.example.ui.components.WfoSectionHeader
+import com.example.ui.components.WfoTextButton
+import com.example.ui.components.WfoUndoBanner
+import com.example.ui.theme.AppTheme
 import com.example.ui.viewmodel.WfoUiState
 import com.example.ui.viewmodel.WfoViewModel
-import com.example.util.BatteryOptimizationHelper
-import com.example.util.DateUtils
+import java.text.DateFormatSymbols
 import java.util.Calendar
 import java.util.Locale
 
-@OptIn(ExperimentalLayoutApi::class, ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
     uiState: WfoUiState,
-    viewModel: WfoViewModel,
-    modifier: Modifier = Modifier
+    viewModel: WfoViewModel
 ) {
     val context = LocalContext.current
-    val focusManager = LocalFocusManager.current
+    var showArrivedEarlierSheet by remember { mutableStateOf(false) }
     var showLeavesDialog by remember { mutableStateOf(false) }
-    var showTransitInfo by remember { mutableStateOf(false) }
+
+    // Dialog state for day actions or manual logging
     var selectedActionDateKey by remember { mutableStateOf<String?>(null) }
     var showManualDialog by remember { mutableStateOf(false) }
     var manualDialogInitialTab by remember { mutableStateOf(ManualLogTab.ATTENDANCE) }
-    var manualDialogInitialDate by remember { mutableStateOf(DateUtils.todayDateStr()) }
+    var manualDialogInitialDate by remember { mutableStateOf<String?>(null) }
     var manualDialogInitialLog by remember { mutableStateOf<CheckInLog?>(null) }
     var manualDialogInitialLeave by remember { mutableStateOf<LeaveHoliday?>(null) }
 
-    // Geofence alert dialog
-    if (uiState.geofenceAlertMessage != null) {
+    // Passive Geofence Arrival Prompt Dialog
+    if (uiState.showArrivalPrompt) {
+        var selectedArrivalOffset by remember { mutableIntStateOf(0) }
+
         AlertDialog(
-            onDismissRequest = { viewModel.dismissGeofenceAlert() },
-            icon = { Icon(Icons.Default.LocationOn, contentDescription = null, tint = AmberWarning) },
-            title = { Text("GPS Geofence Notice") },
-            text = {
+            onDismissRequest = { viewModel.dismissArrivalPrompt() },
+            icon = { Icon(Icons.Default.LocationOn, contentDescription = null, tint = AppTheme.colors.present) },
+            title = {
                 Text(
-                    uiState.geofenceAlertMessage ?: "You are currently outside your configured office radius.",
-                    fontSize = 13.5.sp
+                    text = "Arrived at office",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = AppTheme.colors.ink
                 )
             },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.clearGeofenceAlert()
-                        viewModel.requestPunchIn(context, bypassGeofence = true)
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = BluePrimary)
-                ) {
-                    Text("Punch In Anyway (Override)")
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "You arrived within office coordinates. Punch in now?",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = AppTheme.colors.ink
+                    )
+                    Text(
+                        text = "Transit offset:",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = AppTheme.colors.muted
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf(0 to "Now", 10 to "10m", 15 to "15m", 30 to "30m").forEach { (mins, label) ->
+                            val isSelected = selectedArrivalOffset == mins
+                            Box(modifier = Modifier.weight(1f)) {
+                                WfoChip(
+                                    text = label,
+                                    selected = isSelected,
+                                    onClick = { selectedArrivalOffset = mins },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+                    }
                 }
             },
+            confirmButton = {
+                WfoPrimaryButton(
+                    text = if (selectedArrivalOffset > 0) "Punch in (${selectedArrivalOffset}m)" else "Punch in",
+                    onClick = {
+                        viewModel.confirmArrivalPunchIn(context, selectedArrivalOffset)
+                    }
+                )
+            },
             dismissButton = {
-                Button(
-                    onClick = { viewModel.dismissGeofenceAlert() },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    Text("Cancel", color = MaterialTheme.colorScheme.onSurface)
-                }
-            }
+                WfoTextButton(
+                    text = "Dismiss",
+                    onClick = { viewModel.dismissArrivalPrompt() }
+                )
+            },
+            containerColor = AppTheme.colors.raised,
+            textContentColor = AppTheme.colors.ink,
+            titleContentColor = AppTheme.colors.ink
         )
     }
 
+    // Departure Reminder Prompt Dialog
+    if (uiState.showDeparturePrompt) {
+        var selectedBackdateMinutes by remember { mutableIntStateOf(0) }
+
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissDeparturePrompt() },
+            icon = { Icon(Icons.Default.Notifications, contentDescription = null, tint = AppTheme.colors.short) },
+            title = {
+                Text(
+                    text = "Departure reminder",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = AppTheme.colors.ink
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "Your workday session exceeded the target threshold. Did you leave earlier?",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = AppTheme.colors.ink
+                    )
+                    Text(
+                        text = "Backdate punch out time:",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = AppTheme.colors.muted
+                    )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        listOf(0 to "Now", 15 to "-15m", 30 to "-30m", 45 to "-45m").forEach { (mins, label) ->
+                            val isSelected = selectedBackdateMinutes == mins
+                            Box(modifier = Modifier.weight(1f)) {
+                                WfoChip(
+                                    text = label,
+                                    selected = isSelected,
+                                    onClick = { selectedBackdateMinutes = mins },
+                                    modifier = Modifier.fillMaxWidth()
+                                )
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                WfoPrimaryButton(
+                    text = "Punch out",
+                    onClick = {
+                        viewModel.requestPunchOut(context, -selectedBackdateMinutes)
+                        viewModel.dismissDeparturePrompt()
+                    }
+                )
+            },
+            dismissButton = {
+                WfoTextButton(
+                    text = "Still working",
+                    onClick = { viewModel.dismissDeparturePrompt() }
+                )
+            },
+            containerColor = AppTheme.colors.raised,
+            textContentColor = AppTheme.colors.ink,
+            titleContentColor = AppTheme.colors.ink
+        )
+    }
+
+    // OEM Battery Optimization Nudge Dialog
+    if (uiState.showBatteryOptNudge) {
+        AlertDialog(
+            onDismissRequest = { viewModel.dismissBatteryOptimizationNudge() },
+            icon = { Icon(Icons.Default.BatteryAlert, contentDescription = null, tint = AppTheme.colors.short) },
+            title = {
+                Text(
+                    text = "Battery optimization",
+                    style = MaterialTheme.typography.titleMedium,
+                    color = AppTheme.colors.ink
+                )
+            },
+            text = {
+                Text(
+                    text = "To ensure office arrival detection and live timers run reliably in the background, allow WFO Tracker to run unrestricted.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = AppTheme.colors.ink
+                )
+            },
+            confirmButton = {
+                WfoPrimaryButton(
+                    text = "Disable optimization",
+                    onClick = {
+                        viewModel.dismissBatteryOptimizationNudge()
+                        val powerManager = context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && powerManager != null && !powerManager.isIgnoringBatteryOptimizations(context.packageName)) {
+                            try {
+                                val intent = android.content.Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS)
+                                context.startActivity(intent)
+                            } catch (_: Exception) {}
+                        }
+                    }
+                )
+            },
+            dismissButton = {
+                WfoTextButton(
+                    text = "Later",
+                    onClick = { viewModel.dismissBatteryOptimizationNudge() }
+                )
+            },
+            containerColor = AppTheme.colors.raised,
+            textContentColor = AppTheme.colors.ink,
+            titleContentColor = AppTheme.colors.ink
+        )
+    }
+
+    // Leaves Management Dialog
     if (showLeavesDialog) {
         LeavesManagementDialog(
             leaves = uiState.leaves,
@@ -158,148 +272,7 @@ fun DashboardScreen(
         )
     }
 
-    // Passive Geofence Arrival Prompt Dialog
-    if (uiState.showArrivalPrompt) {
-        var selectedArrivalOffset by remember { mutableStateOf(0) }
-
-        AlertDialog(
-            onDismissRequest = { viewModel.dismissArrivalPrompt() },
-            icon = { Icon(Icons.Default.LocationOn, contentDescription = null, tint = GreenSuccess) },
-            title = { Text("Welcome to the Office!") },
-            text = {
-                Column {
-                    Text(
-                        "You've arrived at the office coordinates. Would you like to punch in now?",
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        "Would you like to backdate start time with a transit offset?",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        listOf(0 to "Now (0m)", 10 to "+10m", 15 to "+15m", 30 to "+30m").forEach { (mins, label) ->
-                            val isSelected = selectedArrivalOffset == mins
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (isSelected) BluePrimary else MaterialTheme.colorScheme.surfaceVariant,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clickable { selectedArrivalOffset = mins }
-                            ) {
-                                Text(
-                                    text = label,
-                                    fontSize = 11.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.padding(vertical = 8.dp, horizontal = 2.dp),
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                )
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.confirmArrivalPunchIn(context, selectedArrivalOffset)
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = BluePrimary)
-                ) {
-                    Text(if (selectedArrivalOffset > 0) "Punch In (+${selectedArrivalOffset}m)" else "Punch In (Now)")
-                }
-            },
-            dismissButton = {
-                OutlinedButton(
-                    onClick = { viewModel.dismissArrivalPrompt() }
-                ) {
-                    Text("Not Yet")
-                }
-            }
-        )
-    }
-
-    // Daily Departure Reminder Prompt Dialog
-    if (uiState.showDeparturePrompt) {
-        var selectedBackdateMinutes by remember { mutableStateOf(0) }
-
-        AlertDialog(
-            onDismissRequest = { viewModel.dismissDeparturePrompt() },
-            icon = { Icon(Icons.Default.Warning, contentDescription = null, tint = AmberWarning) },
-            title = { Text("Still at the Office?") },
-            text = {
-                Column {
-                    Text(
-                        "Your session has exceeded your departure reminder threshold. Did you leave earlier?",
-                        fontSize = 13.sp,
-                        color = MaterialTheme.colorScheme.onSurface
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Text(
-                        "Did you leave earlier? Backdate punch out time:",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(6.dp)
-                    ) {
-                        listOf(0 to "Left Just Now", 15 to "15m Ago", 30 to "30m Ago", 60 to "1h Ago").forEach { (mins, label) ->
-                            val isSelected = selectedBackdateMinutes == mins
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = if (isSelected) BluePrimary else MaterialTheme.colorScheme.surfaceVariant,
-                                modifier = Modifier
-                                    .weight(1f)
-                                    .clickable { selectedBackdateMinutes = mins }
-                            ) {
-                                Text(
-                                    text = label,
-                                    fontSize = 11.sp,
-                                    fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                    color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
-                                    modifier = Modifier.padding(vertical = 8.dp, horizontal = 2.dp),
-                                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                                )
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        viewModel.dismissDeparturePrompt()
-                        viewModel.requestPunchOut(context, addTransitMinutes = -selectedBackdateMinutes)
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = CrimsonDanger)
-                ) {
-                    Text("Punch Out Now")
-                }
-            },
-            dismissButton = {
-                OutlinedButton(
-                    onClick = { viewModel.dismissDeparturePrompt() }
-                ) {
-                    Text("Still Working")
-                }
-            }
-        )
-    }
-
-    // Modal Dialogs for Contextual Long Presses & Shortcuts
+    // Weekly Streak Breakdown Dialog
     if (uiState.showStreakBreakdownDialog) {
         WeeklyStreakBreakdownDialog(
             uiState = uiState,
@@ -307,494 +280,9 @@ fun DashboardScreen(
         )
     }
 
-    if (uiState.showTimerQuickActionMenu) {
-        TimerQuickActionMenuDialog(
-            activeStartMillis = uiState.activeStartMillis,
-            onDismiss = { viewModel.openTimerQuickActionMenu(false) },
-            onAdjustStartTime = { h, m ->
-                viewModel.adjustActiveSessionStart(context, h, m)
-            },
-            onMarkAsWfh = {
-                viewModel.markTodayAsWfh(context)
-            },
-            onSaveNote = { _ ->
-                // note saved
-            }
-        )
-    }
-
-    if (uiState.showPunchInWithNoteDialog) {
-        PunchInWithNoteDialog(
-            initialOffsetMinutes = uiState.transitOffsetMinutes,
-            onDismiss = { viewModel.openPunchInWithNoteDialog(false) },
-            onConfirmPunchIn = { note, offset ->
-                viewModel.setTransitOffsetMinutes(offset)
-                viewModel.requestPunchIn(context, initialNote = note)
-            }
-        )
-    }
-
-    if (uiState.showForgotPunchInDialog) {
-        ForgotPunchInDialog(
-            shiftStart = uiState.settings.shiftStart,
-            onDismiss = { viewModel.openForgotPunchInDialog(false) },
-            onConfirmBackfill = { h, m ->
-                viewModel.backfillPunchInToday(context, h, m)
-            }
-        )
-    }
-
-    PullToRefreshBox(
-        isRefreshing = uiState.isPullRefreshing,
-        onRefresh = { viewModel.pullToRefresh(context) },
-        modifier = modifier.fillMaxSize()
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp)
-        ) {
-            // OEM Battery Optimization Nudge Banner
-            if (uiState.showBatteryOptNudge) {
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = AmberWarning.copy(alpha = 0.15f),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, AmberWarning.copy(alpha = 0.6f)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 12.dp)
-                ) {
-                    Column(modifier = Modifier.fillMaxWidth().padding(12.dp)) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(Icons.Default.BatteryAlert, contentDescription = null, tint = AmberWarning, modifier = Modifier.size(18.dp))
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Text(
-                                    text = "Prevent Timer Service Being Killed",
-                                    fontSize = 13.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = MaterialTheme.colorScheme.onSurface
-                                )
-                            }
-                            IconButton(
-                                onClick = { viewModel.dismissBatteryOptimizationNudge() },
-                                modifier = Modifier.size(24.dp)
-                            ) {
-                                Icon(Icons.Default.Close, contentDescription = "Dismiss", modifier = Modifier.size(16.dp))
-                            }
-                        }
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "OEM systems (Xiaomi, Samsung, OnePlus, Oppo) kill background live timers. Whitelist WFO Tracker to guarantee uninterrupted tracking.",
-                            fontSize = 11.5.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(
-                                onClick = {
-                                    BatteryOptimizationHelper.requestIgnoreBatteryOptimization(context)
-                                    viewModel.dismissBatteryOptimizationNudge()
-                                },
-                                colors = ButtonDefaults.buttonColors(containerColor = AmberWarning),
-                                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
-                                modifier = Modifier.height(34.dp)
-                            ) {
-                                Text("Whitelist App", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = Color.Black)
-                            }
-                            OutlinedButton(
-                                onClick = { viewModel.dismissBatteryOptimizationNudge() },
-                                contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
-                                modifier = Modifier.height(34.dp)
-                            ) {
-                                Text("Dismiss", fontSize = 12.sp)
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Persistent Undo Punch Out Banner with Dismiss Button
-            AnimatedVisibility(
-                visible = uiState.undoAvailable && uiState.undoMessage != null,
-                enter = fadeIn() + expandVertically(),
-                exit = fadeOut() + shrinkVertically()
-            ) {
-                Surface(
-                    shape = RoundedCornerShape(10.dp),
-                    color = BluePrimary.copy(alpha = 0.12f),
-                    border = androidx.compose.foundation.BorderStroke(1.dp, BluePrimary.copy(alpha = 0.5f)),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(bottom = 14.dp)
-                ) {
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(Icons.Default.History, contentDescription = null, tint = BluePrimary, modifier = Modifier.size(18.dp))
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text(
-                                text = uiState.undoMessage ?: "Session logged.",
-                                fontSize = 12.sp,
-                                color = MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            TextButton(
-                                onClick = { viewModel.executeUndoPunchOut(context) },
-                                contentPadding = PaddingValues(horizontal = 8.dp, vertical = 2.dp)
-                            ) {
-                                Text("Undo", fontSize = 12.sp, fontWeight = FontWeight.Bold, color = BluePrimary)
-                            }
-                            IconButton(
-                                onClick = { viewModel.dismissUndo() },
-                                modifier = Modifier.size(28.dp)
-                            ) {
-                                Icon(Icons.Default.Close, contentDescription = "Dismiss", modifier = Modifier.size(16.dp))
-                            }
-                        }
-                    }
-                }
-            }
-
-            // Top Section: Live Punch In/Out Card
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = MaterialTheme.shapes.medium,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(
-                    modifier = Modifier.padding(16.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    CircularProgressTimer(
-                        isPunchedIn = uiState.isPunchedIn,
-                        elapsedSeconds = uiState.elapsedSeconds,
-                        targetHours = uiState.settings.minHours,
-                        countdownMode = uiState.countdownMode,
-                        targetReached = uiState.targetReached,
-                        onToggleCountdown = { viewModel.toggleCountdownMode() },
-                        onPunchClick = {
-                            if (uiState.isPunchedIn) {
-                                viewModel.requestPunchOut(context, addTransitMinutes = 0)
-                            } else {
-                                viewModel.requestPunchIn(context)
-                            }
-                        },
-                        onLongClick = {
-                            if (uiState.isPunchedIn) {
-                                viewModel.openTimerQuickActionMenu(true)
-                            }
-                        },
-                        onPunchLongClick = {
-                            if (!uiState.isPunchedIn) {
-                                viewModel.openPunchInWithNoteDialog(true)
-                            }
-                        }
-                    )
-
-                    // Target or Arrival Information
-                    Spacer(modifier = Modifier.height(8.dp))
-                    if (uiState.isPunchedIn && uiState.targetTimeFormatted.isNotEmpty()) {
-                        Text(
-                            text = "🎯 Daily ${String.format(Locale.US, "%.1f", uiState.settings.minHours)}h target: ${uiState.targetTimeFormatted}",
-                            fontSize = 13.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            color = BluePrimary
-                        )
-                    }
-
-                    // "Forgot to punch in?" shortcut link when not punched in
-                    if (!uiState.isPunchedIn) {
-                        TextButton(
-                            onClick = { viewModel.openForgotPunchInDialog(true) },
-                            modifier = Modifier.padding(top = 2.dp)
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.HistoryToggleOff,
-                                contentDescription = null,
-                                tint = BluePrimary,
-                                modifier = Modifier.size(15.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Forgot to punch in? Backdate arrival",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = BluePrimary
-                            )
-                        }
-
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Surface(
-                            shape = RoundedCornerShape(10.dp),
-                            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                            modifier = Modifier.fillMaxWidth()
-                        ) {
-                            Column(modifier = Modifier.padding(12.dp)) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    modifier = Modifier.fillMaxWidth()
-                                ) {
-                                    Text(
-                                        text = "Commute Offset Memory",
-                                        fontSize = 11.5.sp,
-                                        fontWeight = FontWeight.SemiBold,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                    IconButton(
-                                        onClick = { showTransitInfo = !showTransitInfo },
-                                        modifier = Modifier.size(24.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Info,
-                                            contentDescription = "Offset Info",
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            modifier = Modifier.size(16.dp)
-                                        )
-                                    }
-                                }
-
-                                if (showTransitInfo) {
-                                    Text(
-                                        text = "Choose transit minutes ago or pick an exact arrival time. Offset preference is remembered automatically.",
-                                        fontSize = 10.5.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.padding(bottom = 6.dp)
-                                    )
-                                }
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                ) {
-                                    listOf(0, 5, 7, 10, 15).forEach { mins ->
-                                        FilterChip(
-                                            selected = uiState.transitOffsetMinutes == mins && uiState.customArrivedTimeInput.isBlank(),
-                                            onClick = { viewModel.setTransitOffsetMinutes(mins) },
-                                            label = { Text(if (mins == 0) "Now" else "${mins}m", fontSize = 11.sp) }
-                                        )
-                                    }
-                                }
-
-                                Spacer(modifier = Modifier.height(8.dp))
-
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    DateTimePickerField(
-                                        label = "Or Arrived At (Clock Picker)",
-                                        valueText = if (uiState.customArrivedTimeInput.isNotBlank()) {
-                                            DateUtils.formatTime12(uiState.customArrivedTimeInput)
-                                        } else {
-                                            "Tap to pick arrival time..."
-                                        },
-                                        subtitle = if (uiState.customArrivedTimeInput.isNotBlank()) "Arrival punch will start from ${uiState.customArrivedTimeInput}" else "Set custom backdated arrival",
-                                        icon = Icons.Default.Schedule,
-                                        onClick = {
-                                            val defaultTime = if (uiState.customArrivedTimeInput.isNotBlank()) {
-                                                uiState.customArrivedTimeInput
-                                            } else {
-                                                val c = Calendar.getInstance()
-                                                String.format(Locale.US, "%02d:%02d", c.get(Calendar.HOUR_OF_DAY), c.get(Calendar.MINUTE))
-                                            }
-                                            showNativeTimePicker(context, defaultTime) { picked ->
-                                                viewModel.setCustomArrivedTimeInput(picked)
-                                            }
-                                        },
-                                        modifier = Modifier.weight(1f)
-                                    )
-
-                                    if (uiState.customArrivedTimeInput.isNotBlank()) {
-                                        IconButton(
-                                            onClick = { viewModel.setCustomArrivedTimeInput("") },
-                                            modifier = Modifier.padding(start = 4.dp)
-                                        ) {
-                                            Icon(Icons.Default.Close, contentDescription = "Clear Custom Time", modifier = Modifier.size(18.dp))
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Quick Stats Card
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                shape = MaterialTheme.shapes.medium,
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "📊 QUICK STATS & RUN RATE",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        letterSpacing = 0.5.sp
-                    )
-
-                    Spacer(modifier = Modifier.height(10.dp))
-
-                    MetricRow(
-                        label = "This Month's Attendance:",
-                        value = "${uiState.validDaysThisMonth} / ${uiState.requiredDaysThisMonth} Days (${uiState.monthlyCompliancePercentage}%)",
-                        valueColor = if (uiState.monthlyCompliancePercentage >= 100) GreenSuccess else BluePrimary
-                    )
-
-                    // Run rate calculation
-                    val now = Calendar.getInstance()
-                    val daysInMonth = now.getActualMaximum(Calendar.DAY_OF_MONTH)
-                    val remainingDaysInMonth = maxOf(1, daysInMonth - now.get(Calendar.DAY_OF_MONTH))
-                    val remainingWeeks = maxOf(0.5f, remainingDaysInMonth / 7f)
-                    val deficitDays = maxOf(0, uiState.requiredDaysThisMonth - uiState.validDaysThisMonth)
-                    val runRateText = if (deficitDays == 0) {
-                        "Quota Met! 🎉"
-                    } else {
-                        String.format(Locale.US, "%.1f days / week", deficitDays / remainingWeeks)
-                    }
-
-                    MetricRow(
-                        label = "WFO Frequency Run Rate:",
-                        value = runRateText,
-                        valueColor = if (deficitDays == 0) GreenSuccess else AmberWarning
-                    )
-
-                    MetricRow(
-                        label = "Current Week Progress:",
-                        value = "${uiState.validDaysThisWeek} / ${uiState.settings.targetDaysPerWeek} valid days",
-                        valueColor = if (uiState.validDaysThisWeek >= uiState.settings.targetDaysPerWeek) GreenSuccess else BluePrimary
-                    )
-
-                    // Weekly streak row with click / long-press for breakdown
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp)
-                            .clickable { viewModel.openStreakBreakdown(true) },
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Weekly Consistency Streak:",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Text(
-                                text = "🔥 ${uiState.weeklyStreak} Weeks",
-                                fontSize = 12.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = AmberWarning
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "(Details)",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                color = BluePrimary
-                            )
-                        }
-                    }
-
-                    Row(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Text(
-                            text = "Exclusions (Holidays/Leaves):",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = PurpleExclusion.copy(alpha = 0.18f),
-                            modifier = Modifier.clickable { showLeavesDialog = true }
-                        ) {
-                            Text(
-                                text = "${uiState.currentMonthLeaves.size} Days 🌴 (Manage)",
-                                fontSize = 11.5.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = PurpleExclusion,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Arrival Time Consistency Histogram
-            ArrivalHistogramCard(arrivalBins = uiState.arrivalBins)
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Attendance & Hours Trends
-            HoursTrendCard(weeklyTrends = uiState.weeklyTrends)
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Month Calendar View
-            MonthCalendarCard(
-                year = uiState.dashboardNavYear,
-                month = uiState.dashboardNavMonth,
-                logs = uiState.logs,
-                leaves = uiState.leaves,
-                minHours = uiState.settings.minHours,
-                selectedDateKey = uiState.selectedCalendarDateKey,
-                onDateSelected = { viewModel.selectCalendarDate(it) },
-                onPrevMonth = { viewModel.setDashboardMonth(-1) },
-                onNextMonth = { viewModel.setDashboardMonth(1) },
-                onSelectMonth = { y, m -> viewModel.setDashboardYearMonth(y, m) },
-                onTodayClick = { viewModel.resetToCurrentMonth() },
-                onDateLongClick = { dateKey ->
-                    selectedActionDateKey = dateKey
-                }
-            )
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Daily Status Timeline for selected day
-            DailyStatusTimelineCard(
-                dateKey = uiState.selectedCalendarDateKey,
-                log = uiState.selectedDateLog,
-                leave = uiState.selectedDateLeave,
-                isTodayPunchedIn = uiState.isPunchedIn,
-                activeStartMillis = uiState.activeStartMillis,
-                minHours = uiState.settings.minHours,
-                onLogActionClick = {
-                    selectedActionDateKey = uiState.selectedCalendarDateKey
-                }
-            )
-
-            Spacer(modifier = Modifier.height(24.dp))
-        }
-    }
-
-    // Popup triggered when user long-presses any date or taps "+ Log / Edit Day"
-    selectedActionDateKey?.let { actionDateKey ->
+    // Date Action Dialog (when triggered from other flows)
+    val actionDateKey = selectedActionDateKey
+    if (actionDateKey != null) {
         val logForDate = uiState.logs.find { it.date == actionDateKey }
         val leaveForDate = uiState.leaves.find { it.date == actionDateKey }
 
@@ -809,6 +297,7 @@ fun DashboardScreen(
                 manualDialogInitialDate = actionDateKey
                 manualDialogInitialLog = logForDate
                 manualDialogInitialLeave = null
+                selectedActionDateKey = null
                 showManualDialog = true
             },
             onLogLeaveClick = {
@@ -816,6 +305,7 @@ fun DashboardScreen(
                 manualDialogInitialDate = actionDateKey
                 manualDialogInitialLog = null
                 manualDialogInitialLeave = leaveForDate
+                selectedActionDateKey = null
                 showManualDialog = true
             },
             onDeleteLog = {
@@ -831,63 +321,206 @@ fun DashboardScreen(
         )
     }
 
+    // Manual Log Dialog
     if (showManualDialog) {
+        val existingLogDates = remember(uiState.logs) { uiState.logs.map { it.date }.toSet() }
         ManualLogDialog(
-            initialTab = manualDialogInitialTab,
-            initialDate = manualDialogInitialDate,
+            initialDate = manualDialogInitialDate ?: uiState.selectedCalendarDateKey,
             initialLog = manualDialogInitialLog,
             initialLeave = manualDialogInitialLeave,
+            initialTab = manualDialogInitialTab,
+            existingLogDates = existingLogDates,
             onSaveLog = { d, inTime, outTime, notes ->
                 viewModel.saveManualLog(d, inTime, outTime, notes)
                 showManualDialog = false
-                selectedActionDateKey = null
             },
             onSaveLeave = { from, to, type, title ->
                 viewModel.addLeaveRange(from, to, type, title)
                 showManualDialog = false
-                selectedActionDateKey = null
             },
-            onDeleteLog = { d ->
-                viewModel.deleteLog(d)
-                showManualDialog = false
-                selectedActionDateKey = null
+            onDismiss = { showManualDialog = false }
+        )
+    }
+
+    // Arrived Earlier Bottom Sheet
+    if (showArrivedEarlierSheet) {
+        ArrivedEarlierBottomSheet(
+            selectedOffsetMinutes = uiState.transitOffsetMinutes,
+            customTimeInput = uiState.customArrivedTimeInput,
+            onOffsetSelected = { mins ->
+                viewModel.setTransitOffsetMinutes(mins)
             },
-            onDeleteLeave = { id ->
-                viewModel.deleteLeave(id)
-                showManualDialog = false
-                selectedActionDateKey = null
+            onPickTimeClick = {
+                val defaultTime = if (uiState.customArrivedTimeInput.isNotBlank()) {
+                    uiState.customArrivedTimeInput
+                } else {
+                    val c = Calendar.getInstance()
+                    String.format(Locale.US, "%02d:%02d", c.get(Calendar.HOUR_OF_DAY), c.get(Calendar.MINUTE))
+                }
+                showNativeTimePicker(context, defaultTime) { picked ->
+                    viewModel.setCustomArrivedTimeInput(picked)
+                }
             },
-            onDismiss = {
-                showManualDialog = false
-                selectedActionDateKey = null
+            onClearCustomTime = {
+                viewModel.setCustomArrivedTimeInput("")
+            },
+            onConfirmPunchIn = {
+                showArrivedEarlierSheet = false
+                viewModel.requestPunchIn(context)
+            },
+            onDismissRequest = {
+                // Correctness 1: reset transit offset to 0 and clear custom time when dismissed
+                showArrivedEarlierSheet = false
+                viewModel.setTransitOffsetMinutes(0)
+                viewModel.setCustomArrivedTimeInput("")
             }
         )
     }
+
+    // Pull-to-refresh container
+    val pullRefreshState = rememberPullToRefreshState()
+    PullToRefreshBox(
+        isRefreshing = uiState.isPullRefreshing,
+        onRefresh = { viewModel.pullToRefresh(context) },
+        state = pullRefreshState,
+        modifier = Modifier
+            .fillMaxSize()
+            .background(AppTheme.colors.ground)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(20.dp)
+        ) {
+            // Persistent Undo Punch Out Banner
+            AnimatedVisibility(
+                visible = uiState.undoAvailable && uiState.undoMessage != null,
+                enter = fadeIn(),
+                exit = fadeOut()
+            ) {
+                WfoUndoBanner(
+                    message = uiState.undoMessage ?: "Session logged.",
+                    onUndoClick = { viewModel.executeUndoPunchOut(context) },
+                    onDismissClick = { viewModel.dismissUndo() }
+                )
+            }
+
+            // 1. HERO QUOTA COMPONENT (Sitting directly on Ground without Surface container)
+            val monthNames = DateFormatSymbols.getInstance(Locale.US).months
+            val monthName = monthNames.getOrElse(uiState.dashboardNavMonth) { "This month" }
+
+            val remainingDays = uiState.requiredDaysThisMonth - uiState.validDaysThisMonth
+            val paceSentence = when {
+                remainingDays <= 0 -> "Quota met"
+                else -> "$remainingDays more days needed, about 3 a week"
+            }
+
+            DashboardHeroQuota(
+                monthName = monthName,
+                validDaysThisMonth = uiState.validDaysThisMonth,
+                requiredDaysThisMonth = uiState.requiredDaysThisMonth,
+                underMinimumDays = 0, // Passed as 0 per requirement 2; underMinimum not in WfoUiState
+                minHours = uiState.settings.minHours,
+                paceSentence = paceSentence
+            )
+
+            HorizontalDivider(color = AppTheme.colors.rule, thickness = 1.dp)
+
+            // 2. PUNCH CONTROL (Sitting directly on Ground without Surface container)
+            DashboardPunchControl(
+                isPunchedIn = uiState.isPunchedIn,
+                elapsedSeconds = uiState.elapsedSeconds,
+                minHours = uiState.settings.minHours,
+                targetReached = uiState.targetReached,
+                targetTimeFormatted = uiState.targetTimeFormatted,
+                onPunchInClick = { viewModel.requestPunchIn(context) },
+                onPunchOutClick = { viewModel.requestPunchOut(context) },
+                onArrivedEarlierClick = { showArrivedEarlierSheet = true }
+            )
+
+            HorizontalDivider(color = AppTheme.colors.rule, thickness = 1.dp)
+
+            // 3. THIS WEEK (Sitting directly on Ground without Surface container)
+            DashboardThisWeek(
+                weekBreakdown = uiState.currentWeekBreakdown,
+                validDaysThisWeek = uiState.validDaysThisWeek,
+                targetDaysPerWeek = uiState.settings.targetDaysPerWeek,
+                todayDateKey = uiState.selectedCalendarDateKey
+            )
+
+            HorizontalDivider(color = AppTheme.colors.rule, thickness = 1.dp)
+
+            // 4. STREAK AND EXCLUSIONS (Plain list rows on Ground, separated by Rule lines, no border box)
+            Column(modifier = Modifier.fillMaxWidth()) {
+                WfoListRow(
+                    title = "Weekly streak",
+                    subtitle = "${uiState.weeklyStreak} weeks",
+                    trailingContent = {
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            tint = AppTheme.colors.muted
+                        )
+                    },
+                    onClick = { viewModel.openStreakBreakdown(true) },
+                    showDivider = true
+                )
+
+                WfoListRow(
+                    title = "Exclusions",
+                    subtitle = "${uiState.currentMonthLeaves.size} days",
+                    trailingContent = {
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            tint = AppTheme.colors.muted
+                        )
+                    },
+                    onClick = { showLeavesDialog = true },
+                    showDivider = false
+                )
+            }
+
+            // 5. INSIGHTS (Insight charts maintain single container)
+            WfoSectionHeader(title = "Insights")
+
+            DashboardArrivalHistogram(
+                arrivalBins = uiState.arrivalBins
+            )
+
+            DashboardWeeklyHoursTrend(
+                weeklyTrends = uiState.weeklyTrends
+            )
+
+            Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
 }
 
-@Composable
-private fun MetricRow(
-    label: String,
-    value: String,
-    valueColor: Color
+/**
+ * Native Android TimePickerDialog helper
+ */
+private fun showNativeTimePicker(
+    context: Context,
+    initialTime: String,
+    onTimeSelected: (String) -> Unit
 ) {
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .padding(vertical = 4.dp),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(
-            text = label,
-            fontSize = 12.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Text(
-            text = value,
-            fontSize = 12.5.sp,
-            fontWeight = FontWeight.Bold,
-            color = valueColor
-        )
-    }
+    val parts = initialTime.split(":")
+    val cal = Calendar.getInstance()
+    val initialHour = parts.getOrNull(0)?.toIntOrNull() ?: cal.get(Calendar.HOUR_OF_DAY)
+    val initialMinute = parts.getOrNull(1)?.toIntOrNull() ?: cal.get(Calendar.MINUTE)
+
+    val timePicker = android.app.TimePickerDialog(
+        context,
+        { _, hourOfDay, minute ->
+            val formatted = String.format(Locale.US, "%02d:%02d", hourOfDay, minute)
+            onTimeSelected(formatted)
+        },
+        initialHour,
+        initialMinute,
+        false
+    )
+    timePicker.show()
 }

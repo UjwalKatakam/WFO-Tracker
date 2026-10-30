@@ -1,6 +1,7 @@
 package com.example.ui.screens
 
-import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -14,17 +15,18 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.CalendarViewMonth
-import androidx.compose.material.icons.filled.GridOn
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Tab
-import androidx.compose.material3.TabRow
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -33,6 +35,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -43,10 +48,10 @@ import com.example.ui.components.DateActionDialog
 import com.example.ui.components.ManualLogDialog
 import com.example.ui.components.ManualLogTab
 import com.example.ui.components.MonthCalendarCard
+import com.example.ui.components.MonthNavigationHeader
 import com.example.ui.components.YearMatrixMonthCard
-import com.example.ui.theme.BluePrimary
-import com.example.ui.theme.GreenSuccess
-import com.example.ui.theme.PurpleExclusion
+import com.example.ui.components.YearOverYearComparisonDialog
+import com.example.ui.theme.AppTheme
 import com.example.ui.viewmodel.WfoUiState
 import com.example.ui.viewmodel.WfoViewModel
 import com.example.util.DateUtils
@@ -63,11 +68,8 @@ fun CalendarArchiveScreen(
     viewModel: WfoViewModel,
     modifier: Modifier = Modifier
 ) {
-    val currentYear = Calendar.getInstance().get(Calendar.YEAR)
-    val yearsList = listOf(currentYear - 1, currentYear, currentYear + 1, currentYear + 2)
-    val monthShortNames = listOf("Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec")
-
     var displayMode by remember { mutableStateOf(CalendarDisplayMode.MONTH_VIEW) }
+    var showOverflowMenu by remember { mutableStateOf(false) }
 
     // Dialog state for long-press or direct edit
     var selectedActionDateKey by remember { mutableStateOf<String?>(null) }
@@ -80,7 +82,7 @@ fun CalendarArchiveScreen(
     var showYearOverYearDialog by remember { mutableStateOf(false) }
 
     if (showYearOverYearDialog) {
-        com.example.ui.components.YearOverYearComparisonDialog(
+        YearOverYearComparisonDialog(
             uiState = uiState,
             onDismiss = { showYearOverYearDialog = false }
         )
@@ -89,132 +91,119 @@ fun CalendarArchiveScreen(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(horizontal = 16.dp, vertical = 12.dp)
+            .background(AppTheme.colors.ground)
+            .padding(horizontal = 16.dp, vertical = 8.dp)
     ) {
-        // Top Header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Column {
-                Text(
-                    text = "📅 CALENDAR & WFO MATRIX",
-                    fontSize = 11.5.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    letterSpacing = 0.5.sp
-                )
-                Text(
-                    text = "Track office attendance, leaves & holidays",
-                    fontSize = 13.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // View Mode Switcher: Month Focus vs 12-Month Matrix
-        TabRow(
-            selectedTabIndex = if (displayMode == CalendarDisplayMode.MONTH_VIEW) 0 else 1,
-            containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Tab(
-                selected = displayMode == CalendarDisplayMode.MONTH_VIEW,
-                onClick = { displayMode = CalendarDisplayMode.MONTH_VIEW },
-                text = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.CalendarMonth, contentDescription = null, modifier = Modifier.padding(end = 6.dp))
-                        Text("Month Focus", fontWeight = if (displayMode == CalendarDisplayMode.MONTH_VIEW) FontWeight.Bold else FontWeight.Medium)
-                    }
-                }
-            )
-            Tab(
-                selected = displayMode == CalendarDisplayMode.YEAR_MATRIX,
-                onClick = { displayMode = CalendarDisplayMode.YEAR_MATRIX },
-                text = {
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Icon(Icons.Default.GridOn, contentDescription = null, modifier = Modifier.padding(end = 6.dp))
-                        Text("12-Month Matrix", fontWeight = if (displayMode == CalendarDisplayMode.YEAR_MATRIX) FontWeight.Bold else FontWeight.Medium)
-                    }
-                }
-            )
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Year Selector Chips
+        // Top Toolbar: View switcher (Month vs 12-month) and overflow menu
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                .padding(bottom = 8.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Text(
-                text = "Year:",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(end = 4.dp)
-            )
-            yearsList.forEach { y ->
-                FilterChip(
-                    selected = uiState.selectedArchiveYear == y,
-                    onClick = { viewModel.setArchiveYear(y) },
-                    label = { Text("$y", fontSize = 12.sp, fontWeight = FontWeight.Bold) }
-                )
+            // Segmented switch tabs
+            Surface(
+                shape = CircleShape,
+                color = AppTheme.colors.raised,
+                border = BorderStroke(1.dp, AppTheme.colors.rule)
+            ) {
+                Row(
+                    modifier = Modifier.padding(3.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    val isMonth = displayMode == CalendarDisplayMode.MONTH_VIEW
+                    Surface(
+                        selected = isMonth,
+                        onClick = { displayMode = CalendarDisplayMode.MONTH_VIEW },
+                        shape = CircleShape,
+                        color = if (isMonth) AppTheme.colors.present.copy(alpha = if (AppTheme.colors.isDark) 0.2f else 0.14f) else AppTheme.colors.raised,
+                        border = if (isMonth) BorderStroke(1.dp, AppTheme.colors.present) else null,
+                        modifier = Modifier.semantics { role = Role.Tab }
+                    ) {
+                        Text(
+                            text = "Month",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (isMonth) AppTheme.colors.present else AppTheme.colors.muted,
+                            fontWeight = if (isMonth) FontWeight.SemiBold else FontWeight.Normal,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                        )
+                    }
+
+                    val isMatrix = displayMode == CalendarDisplayMode.YEAR_MATRIX
+                    Surface(
+                        selected = isMatrix,
+                        onClick = { displayMode = CalendarDisplayMode.YEAR_MATRIX },
+                        shape = CircleShape,
+                        color = if (isMatrix) AppTheme.colors.present.copy(alpha = if (AppTheme.colors.isDark) 0.2f else 0.14f) else AppTheme.colors.raised,
+                        border = if (isMatrix) BorderStroke(1.dp, AppTheme.colors.present) else null,
+                        modifier = Modifier.semantics { role = Role.Tab }
+                    ) {
+                        Text(
+                            text = "12-month matrix",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (isMatrix) AppTheme.colors.present else AppTheme.colors.muted,
+                            fontWeight = if (isMatrix) FontWeight.SemiBold else FontWeight.Normal,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                        )
+                    }
+                }
             }
 
-            androidx.compose.material3.OutlinedButton(
-                onClick = { showYearOverYearDialog = true },
-                shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-                contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 8.dp, vertical = 2.dp),
-                modifier = Modifier.height(32.dp)
-            ) {
-                androidx.compose.material3.Icon(
-                    androidx.compose.material.icons.Icons.Default.CalendarViewMonth,
-                    contentDescription = null,
-                    modifier = Modifier.size(13.dp)
-                )
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("YoY Compare", fontSize = 11.sp, fontWeight = FontWeight.Bold)
+            // Overflow menu for Year-over-Year audit
+            Box {
+                IconButton(
+                    onClick = { showOverflowMenu = true },
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.MoreVert,
+                        contentDescription = "More options",
+                        tint = AppTheme.colors.ink
+                    )
+                }
+
+                DropdownMenu(
+                    expanded = showOverflowMenu,
+                    onDismissRequest = { showOverflowMenu = false },
+                    modifier = Modifier.background(AppTheme.colors.raised)
+                ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                text = "Year-over-year audit",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = AppTheme.colors.ink
+                            )
+                        },
+                        onClick = {
+                            showOverflowMenu = false
+                            showYearOverYearDialog = true
+                        }
+                    )
+                }
             }
         }
 
         if (displayMode == CalendarDisplayMode.MONTH_VIEW) {
-            // Month Quick Picker Ribbon
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 6.dp)
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                monthShortNames.forEachIndexed { index, name ->
-                    FilterChip(
-                        selected = uiState.selectedArchiveMonth == index,
-                        onClick = { viewModel.setArchiveYearMonth(uiState.selectedArchiveYear, index) },
-                        label = { Text(name, fontSize = 11.5.sp) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = BluePrimary.copy(alpha = 0.15f),
-                            selectedLabelColor = BluePrimary
-                        )
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(6.dp))
-
-            // Month View: Scrollable Column with Working Navigation & Details
+            // Month View: Single navigation header + Month grid + Selected day details
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                // Interactive Month Calendar Card with working Prev/Next arrows
+                // Unified month navigation control
+                item {
+                    MonthNavigationHeader(
+                        year = uiState.selectedArchiveYear,
+                        month = uiState.selectedArchiveMonth,
+                        onPrevMonth = { viewModel.setArchiveMonth(-1) },
+                        onNextMonth = { viewModel.setArchiveMonth(1) },
+                        onSelectYearMonth = { y, m -> viewModel.setArchiveYearMonth(y, m) },
+                        onTodayClick = { viewModel.resetArchiveToToday() }
+                    )
+                }
+
+                // Month Calendar Grid with 8th column weekly quota marker
                 item {
                     MonthCalendarCard(
                         year = uiState.selectedArchiveYear,
@@ -222,19 +211,14 @@ fun CalendarArchiveScreen(
                         logs = uiState.logs,
                         leaves = uiState.leaves,
                         minHours = uiState.settings.minHours,
+                        targetDaysPerWeek = uiState.settings.targetDaysPerWeek,
                         selectedDateKey = uiState.selectedCalendarDateKey,
                         onDateSelected = { viewModel.selectCalendarDate(it) },
-                        onPrevMonth = { viewModel.setArchiveMonth(-1) },
-                        onNextMonth = { viewModel.setArchiveMonth(1) },
-                        onSelectMonth = { y, m -> viewModel.setArchiveYearMonth(y, m) },
-                        onTodayClick = { viewModel.resetArchiveToToday() },
-                        onDateLongClick = { dateKey ->
-                            selectedActionDateKey = dateKey
-                        }
+                        onDateLongClick = { dateKey -> selectedActionDateKey = dateKey }
                     )
                 }
 
-                // Selected Day Timeline Detail Card with "+ Log / Edit Day" Button
+                // Selected day detail card with empty state helpful hint
                 item {
                     DailyStatusTimelineCard(
                         dateKey = uiState.selectedCalendarDateKey,
@@ -246,46 +230,74 @@ fun CalendarArchiveScreen(
                         onLogActionClick = {
                             selectedActionDateKey = uiState.selectedCalendarDateKey
                         },
-                        modifier = Modifier.padding(bottom = 16.dp)
+                        modifier = Modifier.padding(bottom = 24.dp)
                     )
                 }
             }
         } else {
-            // 12-Month Year Matrix Overview
+            // 12-Month Year Matrix View
             val yearPrefix = "${uiState.selectedArchiveYear}"
             val totalYearWfo = uiState.logs.count { it.date.startsWith(yearPrefix) && it.isValidWFODay(uiState.settings.minHours) }
             val totalYearLeaves = uiState.leaves.count { it.date.startsWith(yearPrefix) }
 
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Total WFO in ${uiState.selectedArchiveYear}: $totalYearWfo days",
-                    fontSize = 12.5.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = GreenSuccess
-                )
-                if (totalYearLeaves > 0) {
-                    Text(
-                        text = "🌴 $totalYearLeaves Leaves/Holidays",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = PurpleExclusion
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(4.dp))
-
-            // 12 Month Cards Grid
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
+                // Year navigation row
+                item {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        IconButton(
+                            onClick = { viewModel.setArchiveYear(uiState.selectedArchiveYear - 1) },
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Previous year",
+                                tint = AppTheme.colors.ink
+                            )
+                        }
+
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Text(
+                                text = "${uiState.selectedArchiveYear}",
+                                style = MaterialTheme.typography.titleLarge,
+                                color = AppTheme.colors.ink,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            Text(
+                                text = buildString {
+                                    append("$totalYearWfo office days in ${uiState.selectedArchiveYear}")
+                                    if (totalYearLeaves > 0) {
+                                        append(" · $totalYearLeaves leaves")
+                                    }
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = AppTheme.colors.muted
+                            )
+                        }
+
+                        IconButton(
+                            onClick = { viewModel.setArchiveYear(uiState.selectedArchiveYear + 1) },
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = "Next year",
+                                tint = AppTheme.colors.ink
+                            )
+                        }
+                    }
+                }
+
+                // 12 mini month cards
                 itemsIndexed((0..11).toList()) { monthIndex, _ ->
                     YearMatrixMonthCard(
                         year = uiState.selectedArchiveYear,
@@ -307,11 +319,15 @@ fun CalendarArchiveScreen(
                         }
                     )
                 }
+
+                item {
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
             }
         }
     }
 
-    // Popup triggered when user long-presses any date or taps "+ Log / Edit Day"
+    // Popup triggered when user long-presses any date or taps "Edit day" / "Log day"
     selectedActionDateKey?.let { actionDateKey ->
         val logForDate = uiState.logs.find { it.date == actionDateKey }
         val leaveForDate = uiState.leaves.find { it.date == actionDateKey }
@@ -345,13 +361,15 @@ fun CalendarArchiveScreen(
         )
     }
 
-    // Manual Log / Leave Unified Dialog
+    // Manual Log / Leave unified modal
     if (showManualDialog) {
+        val existingLogDates = remember(uiState.logs) { uiState.logs.map { it.date }.toSet() }
         ManualLogDialog(
             initialDate = manualDialogInitialDate,
             initialLog = manualDialogInitialLog,
             initialLeave = manualDialogInitialLeave,
             initialTab = manualDialogInitialTab,
+            existingLogDates = existingLogDates,
             onSaveLog = { d, inTime, outTime, notes ->
                 viewModel.saveManualLog(d, inTime, outTime, notes)
                 showManualDialog = false

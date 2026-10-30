@@ -5,13 +5,20 @@ import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -25,37 +32,37 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material.icons.filled.FileDownload
-import androidx.compose.material.icons.filled.FileUpload
-import androidx.compose.material.icons.filled.Info
-import androidx.compose.material.icons.filled.Login
-import androidx.compose.material.icons.filled.Logout
-import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.FilterList
+import androidx.compose.material.icons.filled.HourglassBottom
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
-import androidx.compose.material.icons.filled.Share
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarDuration
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberSwipeToDismissBoxState
-import androidx.compose.ui.draw.clip
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -66,26 +73,54 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
-import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.CustomAccessibilityAction
+import androidx.compose.ui.semantics.customActions
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.core.content.FileProvider
 import com.example.data.local.CheckInLog
 import com.example.ui.components.ManualLogDialog
-import com.example.ui.theme.AmberWarning
-import com.example.ui.theme.BluePrimary
-import com.example.ui.theme.CrimsonDanger
-import com.example.ui.theme.GreenSuccess
+import com.example.ui.components.ReportMonthPickerSheet
+import com.example.ui.components.WfoBottomSheet
+import com.example.ui.components.WfoChip
+import com.example.ui.components.WfoPrimaryButton
+import com.example.ui.components.WfoTextButton
+import com.example.ui.components.sharePdfReport
+import com.example.ui.components.showNativeDatePicker
+import com.example.ui.theme.AppTheme
 import com.example.ui.viewmodel.WfoUiState
 import com.example.ui.viewmodel.WfoViewModel
 import com.example.util.DateUtils
 import kotlinx.coroutines.launch
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import java.text.SimpleDateFormat
 import java.util.Locale
 
-@OptIn(ExperimentalMaterial3Api::class)
+private enum class StatusFilter {
+    ALL,
+    QUALIFIED,
+    UNDER_TARGET
+}
+
+private data class MonthLogGroup(
+    val key: String,
+    val monthTitle: String,
+    val daysCount: Int,
+    val summary: String,
+    val logs: List<CheckInLog>
+)
+
+private fun pluralize(count: Int, singular: String, plural: String = "${singular}s"): String {
+    return if (count == 1) "$count $singular" else "$count $plural"
+}
+
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class, ExperimentalLayoutApi::class)
 @Composable
 fun LogHistoryScreen(
     uiState: WfoUiState,
@@ -95,12 +130,59 @@ fun LogHistoryScreen(
     val context = LocalContext.current
     val focusManager = LocalFocusManager.current
     val coroutineScope = rememberCoroutineScope()
+    val snackbarHostState = remember { SnackbarHostState() }
 
+    // Dialog & sheet state
     var showManualDialog by remember { mutableStateOf(false) }
     var editingLog by remember { mutableStateOf<CheckInLog?>(null) }
-    var deletingLogDate by remember { mutableStateOf<String?>(null) }
+    var showFilterSheet by remember { mutableStateOf(false) }
+    var showOverflowMenu by remember { mutableStateOf(false) }
+    var showReportMonthPicker by remember { mutableStateOf(false) }
+    var isSearchActive by remember { mutableStateOf(false) }
+
+    // Search and filter parameters
     var searchQuery by remember { mutableStateOf("") }
-    var selectedFilter by remember { mutableStateOf("all") } // "all", "valid", "short"
+    var filterStatus by remember { mutableStateOf(StatusFilter.ALL) }
+    var filterFromDate by remember { mutableStateOf("") }
+    var filterToDate by remember { mutableStateOf("") }
+
+    // Locally pending deleted dates (for immediate row dismissal and snackbar undo window)
+    var pendingDeleted by remember { mutableStateOf(emptySet<String>()) }
+
+    // Prune pendingDeleted dates once uiState.logs no longer contains them so rows do not flash back
+    LaunchedEffect(uiState.logs) {
+        val currentDates = uiState.logs.map { it.date }.toSet()
+        pendingDeleted = pendingDeleted.filter { it in currentDates }.toSet()
+    }
+
+    // Commit any pending deletes when screen is disposed
+    DisposableEffect(Unit) {
+        onDispose {
+            pendingDeleted.forEach { date ->
+                viewModel.deleteLog(date)
+            }
+        }
+    }
+
+    // Common deletion handler used by swipe-to-dismiss and accessibility action
+    val markForDeletion: (CheckInLog) -> Unit = { log ->
+        val logDate = log.date
+        pendingDeleted = pendingDeleted + logDate
+        coroutineScope.launch {
+            val parsed = DateUtils.parseDate(logDate)
+            val dateShort = SimpleDateFormat("d MMM", Locale.US).format(parsed)
+            val result = snackbarHostState.showSnackbar(
+                message = "Deleted log for $dateShort",
+                actionLabel = "Undo",
+                duration = SnackbarDuration.Short
+            )
+            if (result == SnackbarResult.ActionPerformed) {
+                pendingDeleted = pendingDeleted - logDate
+            } else {
+                viewModel.deleteLog(logDate)
+            }
+        }
+    }
 
     // SAF Document Launchers for JSON File Backup
     val exportJsonLauncher = rememberLauncherForActivityResult(
@@ -134,10 +216,97 @@ fun LogHistoryScreen(
         }
     }
 
-    // Manual Log / Edit Dialog
+    // Active filter badge count (excluding inline search query)
+    val activeFilterCount = remember(filterStatus, filterFromDate, filterToDate) {
+        var count = 0
+        if (filterStatus != StatusFilter.ALL) count++
+        if (filterFromDate.isNotBlank()) count++
+        if (filterToDate.isNotBlank()) count++
+        count
+    }
+
+    // Filtered list: immediate response to pendingDeleted, search query, and filter criteria
+    val filteredLogs = remember(
+        uiState.logs,
+        searchQuery,
+        filterStatus,
+        filterFromDate,
+        filterToDate,
+        pendingDeleted,
+        uiState.settings.minHours
+    ) {
+        uiState.logs
+            .filter { it.date !in pendingDeleted }
+            .filter { log ->
+                val isValid = log.isValidWFODay(uiState.settings.minHours)
+                val matchesStatus = when (filterStatus) {
+                    StatusFilter.ALL -> true
+                    StatusFilter.QUALIFIED -> isValid
+                    StatusFilter.UNDER_TARGET -> !isValid
+                }
+                val matchesFrom = filterFromDate.isBlank() || log.date >= filterFromDate
+                val matchesTo = filterToDate.isBlank() || log.date <= filterToDate
+                val q = searchQuery.trim().lowercase(Locale.US)
+                val matchesQuery = if (q.isEmpty()) {
+                    true
+                } else {
+                    val parsedDate = DateUtils.parseDate(log.date)
+                    val displayDate = SimpleDateFormat("EEE d MMM", Locale.US).format(parsedDate).lowercase(Locale.US)
+                    val monthName = SimpleDateFormat("MMMM yyyy", Locale.US).format(parsedDate).lowercase(Locale.US)
+                    log.date.lowercase(Locale.US).contains(q) ||
+                        displayDate.contains(q) ||
+                        monthName.contains(q) ||
+                        (log.notes?.lowercase(Locale.US)?.contains(q) == true)
+                }
+
+                matchesStatus && matchesFrom && matchesTo && matchesQuery
+            }
+            .sortedByDescending { it.date }
+    }
+
+    // Summary line computed from visible filtered list (excluding pending deletes)
+    val summaryText = remember(filteredLogs, uiState.settings.minHours) {
+        val total = filteredLogs.size
+        val qualified = filteredLogs.count { it.isValidWFODay(uiState.settings.minHours) }
+        val underTarget = total - qualified
+        val totalMins = filteredLogs.sumOf { it.durationMinutes }
+        val avgMins = if (total > 0) totalMins / total else 0
+
+        val totalH = totalMins / 60
+        val totalM = totalMins % 60
+        val avgH = avgMins / 60
+        val avgM = avgMins % 60
+
+        "$qualified qualified, $underTarget under target, ${totalH}h ${totalM}m total, ${avgH}h ${avgM}m average"
+    }
+
+    // Month grouping for LazyColumn stickyHeader
+    val monthGroups = remember(filteredLogs) {
+        filteredLogs
+            .groupBy { log -> log.date.take(7) } // "YYYY-MM"
+            .map { (yearMonth, logsInMonth) ->
+                val date = DateUtils.parseDate("$yearMonth-01")
+                val monthName = SimpleDateFormat("MMMM yyyy", Locale.US).format(date)
+                val daysCount = logsInMonth.size
+                val totalMins = logsInMonth.sumOf { it.durationMinutes }
+                val h = totalMins / 60
+                val m = totalMins % 60
+                MonthLogGroup(
+                    key = yearMonth,
+                    monthTitle = monthName,
+                    daysCount = daysCount,
+                    summary = "${pluralize(daysCount, "day")}, ${h}h ${m}m",
+                    logs = logsInMonth
+                )
+            }
+    }
+
+    // Manual Log Dialog
     if (showManualDialog) {
+        val existingLogDates = remember(uiState.logs) { uiState.logs.map { it.date }.toSet() }
         ManualLogDialog(
             initialLog = editingLog,
+            existingLogDates = existingLogDates,
             onSaveLog = { date, inTime, outTime, notes ->
                 viewModel.saveManualLog(date, inTime, outTime, notes)
                 showManualDialog = false
@@ -160,617 +329,525 @@ fun LogHistoryScreen(
         )
     }
 
-    // Delete confirmation dialog
-    if (deletingLogDate != null) {
-        AlertDialog(
-            onDismissRequest = { deletingLogDate = null },
-            title = { Text("Delete Attendance Log?") },
-            text = { Text("Are you sure you want to permanently delete the log record for $deletingLogDate?") },
-            confirmButton = {
-                Button(
-                    onClick = {
-                        deletingLogDate?.let { viewModel.deleteLog(it) }
-                        deletingLogDate = null
-                    },
-                    colors = ButtonDefaults.buttonColors(containerColor = CrimsonDanger)
-                ) {
-                    Text("Delete", color = Color.White)
-                }
-            },
-            dismissButton = {
-                Button(
-                    onClick = { deletingLogDate = null },
-                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
-                ) {
-                    Text("Cancel", color = MaterialTheme.colorScheme.onSurface)
-                }
+    // Monthly Audit Report Picker Bottom Sheet
+    if (showReportMonthPicker) {
+        ReportMonthPickerSheet(
+            initialYear = uiState.dashboardNavYear,
+            initialMonth = uiState.dashboardNavMonth,
+            onDismissRequest = { showReportMonthPicker = false },
+            onConfirm = { year, month ->
+                val pdfFile = viewModel.generatePdfReport(context, year, month)
+                sharePdfReport(context, pdfFile)
             }
         )
     }
 
-    // Calculate Summary Stats for clarity
-    val totalRecords = uiState.logs.size
-    val validWfoCount = uiState.logs.count { it.isValidWFODay(uiState.settings.minHours) }
-    val shortWfoCount = totalRecords - validWfoCount
-    val totalHoursSum = uiState.logs.sumOf { it.totalHours }
+    // Filter Bottom Sheet
+    if (showFilterSheet) {
+        val liveCount = filteredLogs.size
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp)
-            .padding(top = 8.dp)
-    ) {
-        // Top Header & Manual Log CTA
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
+        WfoBottomSheet(
+            onDismissRequest = { showFilterSheet = false },
+            title = "Filters"
         ) {
-            Column {
-                Text(
-                    text = "OFFICE ATTENDANCE HISTORY",
-                    fontSize = 11.5.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    letterSpacing = 0.5.sp
-                )
-                Text(
-                    text = "$totalRecords Logged Days",
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
-            }
-
-            Button(
-                onClick = {
-                    editingLog = null
-                    showManualDialog = true
-                },
-                modifier = Modifier.testTag("add_manual_log_button")
-            ) {
-                Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Manual Log", fontSize = 12.sp)
-            }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // High-clarity summary dashboard card
-        Surface(
-            shape = RoundedCornerShape(12.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.55f),
-            border = androidx.compose.foundation.BorderStroke(
-                1.dp,
-                MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.6f)
-            ),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(vertical = 10.dp, horizontal = 14.dp),
-                horizontalArrangement = Arrangement.SpaceAround,
-                verticalAlignment = Alignment.CenterVertically
+                    .padding(horizontal = 20.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                // Status Filter Chips using FlowRow with wrap-content chips (no weight)
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = "$validWfoCount",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = GreenSuccess
+                        text = "Status",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = AppTheme.colors.muted,
+                        fontWeight = FontWeight.Medium
                     )
-                    Text(
-                        text = "Valid (≥${String.format(Locale.US, "%.1f", uiState.settings.minHours)}h)",
-                        fontSize = 10.5.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .height(26.dp)
-                        .width(1.dp)
-                        .background(MaterialTheme.colorScheme.outlineVariant)
-                )
-
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = "$shortWfoCount",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = AmberWarning
-                    )
-                    Text(
-                        text = "Under Target",
-                        fontSize = 10.5.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .height(26.dp)
-                        .width(1.dp)
-                        .background(MaterialTheme.colorScheme.outlineVariant)
-                )
-
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        text = String.format(Locale.US, "%.1fh", totalHoursSum),
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = BluePrimary
-                    )
-                    Text(
-                        text = "Total Logged",
-                        fontSize = 10.5.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // File Export / Import Row
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            OutlinedButton(
-                onClick = { exportJsonLauncher.launch("WFO_Backup_${DateUtils.todayDateStr()}.json") },
-                modifier = Modifier.weight(1f)
-            ) {
-                Icon(Icons.Default.FileDownload, contentDescription = null, modifier = Modifier.size(15.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Export JSON", fontSize = 11.sp)
-            }
-
-            OutlinedButton(
-                onClick = { importJsonLauncher.launch(arrayOf("application/json", "text/*")) },
-                modifier = Modifier.weight(1f)
-            ) {
-                Icon(Icons.Default.FileUpload, contentDescription = null, modifier = Modifier.size(15.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("Import JSON", fontSize = 11.sp)
-            }
-
-            OutlinedButton(
-                onClick = { shareCsv(context, uiState.logs, uiState.settings.minHours) },
-                modifier = Modifier.weight(1f)
-            ) {
-                Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(15.dp))
-                Spacer(modifier = Modifier.width(4.dp))
-                Text("CSV", fontSize = 11.sp)
-            }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Search and Filter Row
-        OutlinedTextField(
-            value = searchQuery,
-            onValueChange = { searchQuery = it },
-            placeholder = { Text("Filter by date (YYYY-MM-DD) or notes...") },
-            leadingIcon = {
-                Icon(
-                    Icons.Default.Search,
-                    contentDescription = "Search",
-                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.size(18.dp)
-                )
-            },
-            trailingIcon = {
-                if (searchQuery.isNotBlank()) {
-                    IconButton(onClick = { searchQuery = "" }) {
-                        Icon(Icons.Default.Close, contentDescription = "Clear search", modifier = Modifier.size(16.dp))
-                    }
-                }
-            },
-            singleLine = true,
-            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-            keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Spacer(modifier = Modifier.height(8.dp))
-
-        // Quick status filter chips
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            FilterChip(
-                selected = selectedFilter == "all",
-                onClick = { selectedFilter = "all" },
-                label = { Text("All ($totalRecords)", fontSize = 11.sp) }
-            )
-            FilterChip(
-                selected = selectedFilter == "valid",
-                onClick = { selectedFilter = "valid" },
-                label = { Text("Valid WFO ($validWfoCount)", fontSize = 11.sp) }
-            )
-            FilterChip(
-                selected = selectedFilter == "short",
-                onClick = { selectedFilter = "short" },
-                label = { Text("Under Target ($shortWfoCount)", fontSize = 11.sp) }
-            )
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Filtered logs list
-        val filteredLogs = uiState.logs.filter { log ->
-            val matchesSearch = if (searchQuery.isBlank()) true
-            else log.date.contains(searchQuery.trim()) || log.notes?.contains(searchQuery.trim(), ignoreCase = true) == true
-
-            val matchesFilter = when (selectedFilter) {
-                "valid" -> log.isValidWFODay(uiState.settings.minHours)
-                "short" -> !log.isValidWFODay(uiState.settings.minHours)
-                else -> true
-            }
-
-            matchesSearch && matchesFilter
-        }
-
-        if (filteredLogs.isEmpty()) {
-            Card(
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)),
-                shape = RoundedCornerShape(16.dp),
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 24.dp, horizontal = 4.dp)
-            ) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(28.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(54.dp)
-                            .background(BluePrimary.copy(alpha = 0.15f), RoundedCornerShape(27.dp)),
-                        contentAlignment = Alignment.Center
+                    FlowRow(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Icon(
-                            Icons.Default.Schedule,
-                            contentDescription = null,
-                            tint = BluePrimary,
-                            modifier = Modifier.size(28.dp)
+                        WfoChip(
+                            text = "All",
+                            selected = filterStatus == StatusFilter.ALL,
+                            onClick = { filterStatus = StatusFilter.ALL }
+                        )
+                        WfoChip(
+                            text = "Qualified",
+                            selected = filterStatus == StatusFilter.QUALIFIED,
+                            onClick = { filterStatus = StatusFilter.QUALIFIED }
+                        )
+                        WfoChip(
+                            text = "Under target",
+                            selected = filterStatus == StatusFilter.UNDER_TARGET,
+                            onClick = { filterStatus = StatusFilter.UNDER_TARGET }
                         )
                     }
-                    Spacer(modifier = Modifier.height(14.dp))
+                }
+
+                // Date Range Filter
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(
-                        text = if (uiState.logs.isEmpty()) "No Attendance Logs Yet" else "No Matching Logs Found",
-                        fontSize = 15.5.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurface
+                        text = "Date range",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = AppTheme.colors.muted,
+                        fontWeight = FontWeight.Medium
                     )
-                    Spacer(modifier = Modifier.height(6.dp))
-                    Text(
-                        text = if (uiState.logs.isEmpty())
-                            "Live punch sessions and manual day logs will appear here with instant daily qualification statuses."
-                        else
-                            "Try clearing your search query or changing the filter chip above.",
-                        fontSize = 12.5.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                    )
-                    if (uiState.logs.isEmpty()) {
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(
-                            onClick = {
-                                editingLog = null
-                                showManualDialog = true
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        FilterDateField(
+                            label = "From",
+                            dateValue = filterFromDate,
+                            onPickDate = {
+                                showNativeDatePicker(context, filterFromDate.ifBlank { DateUtils.todayDateStr() }) { picked ->
+                                    filterFromDate = picked
+                                }
                             },
-                            colors = ButtonDefaults.buttonColors(containerColor = BluePrimary)
-                        ) {
-                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text("Add First Attendance Log", fontSize = 12.5.sp)
-                        }
+                            onClearDate = { filterFromDate = "" },
+                            modifier = Modifier.weight(1f)
+                        )
+
+                        FilterDateField(
+                            label = "To",
+                            dateValue = filterToDate,
+                            onPickDate = {
+                                showNativeDatePicker(context, filterToDate.ifBlank { DateUtils.todayDateStr() }) { picked ->
+                                    filterToDate = picked
+                                }
+                            },
+                            onClearDate = { filterToDate = "" },
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 }
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                // Bottom actions: Clear all filters & Show X logs
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    WfoTextButton(
+                        text = "Clear all filters",
+                        onClick = {
+                            filterStatus = StatusFilter.ALL
+                            filterFromDate = ""
+                            filterToDate = ""
+                        }
+                    )
+
+                    WfoPrimaryButton(
+                        text = "Show ${pluralize(liveCount, "log")}",
+                        onClick = { showFilterSheet = false }
+                    )
+                }
             }
-        } else {
+        }
+    }
+
+    Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
+        containerColor = AppTheme.colors.ground,
+        contentWindowInsets = WindowInsets(0.dp),
+        modifier = modifier.fillMaxSize()
+    ) { contentPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(contentPadding)
+        ) {
+            // Header: Right-aligned action row (search, filter, add log, overflow menu) with 48 dp targets
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 4.dp, vertical = 2.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(
-                    text = "💡 Swipe right to edit • Swipe left to delete",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-            Spacer(modifier = Modifier.height(4.dp))
-            LazyColumn(
-                modifier = Modifier.fillMaxSize(),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                items(filteredLogs, key = { it.date }) { log ->
-                    val isValid = log.isValidWFODay(uiState.settings.minHours)
-                    val friendlyDate = DateUtils.formatDisplayDate(log.date)
-
-                    val dismissState = rememberSwipeToDismissBoxState(
-                        confirmValueChange = { value ->
-                            when (value) {
-                                SwipeToDismissBoxValue.EndToStart -> {
-                                    deletingLogDate = log.date
-                                    false
-                                }
-                                SwipeToDismissBoxValue.StartToEnd -> {
-                                    editingLog = log
-                                    showManualDialog = true
-                                    false
-                                }
-                                SwipeToDismissBoxValue.Settled -> false
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    // 1. Search toggle
+                    IconButton(
+                        onClick = {
+                            isSearchActive = !isSearchActive
+                            if (!isSearchActive) {
+                                searchQuery = ""
+                                focusManager.clearFocus()
                             }
-                        }
-                    )
-
-                    SwipeToDismissBox(
-                        state = dismissState,
-                        enableDismissFromStartToEnd = true,
-                        enableDismissFromEndToStart = true,
-                        backgroundContent = {
-                            val direction = dismissState.dismissDirection
-                            val color = when (direction) {
-                                SwipeToDismissBoxValue.EndToStart -> CrimsonDanger.copy(alpha = 0.85f)
-                                SwipeToDismissBoxValue.StartToEnd -> BluePrimary.copy(alpha = 0.85f)
-                                else -> Color.Transparent
-                            }
-                            val alignment = when (direction) {
-                                SwipeToDismissBoxValue.EndToStart -> Alignment.CenterEnd
-                                SwipeToDismissBoxValue.StartToEnd -> Alignment.CenterStart
-                                else -> Alignment.Center
-                            }
-                            val icon = when (direction) {
-                                SwipeToDismissBoxValue.EndToStart -> Icons.Default.Delete
-                                SwipeToDismissBoxValue.StartToEnd -> Icons.Default.Edit
-                                else -> null
-                            }
-                            val label = when (direction) {
-                                SwipeToDismissBoxValue.EndToStart -> "Delete"
-                                SwipeToDismissBoxValue.StartToEnd -> "Edit"
-                                else -> ""
-                            }
-
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .clip(RoundedCornerShape(12.dp))
-                                    .background(color)
-                                    .padding(horizontal = 20.dp),
-                                contentAlignment = alignment
-                            ) {
-                                if (icon != null) {
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        if (direction == SwipeToDismissBoxValue.StartToEnd) {
-                                            Icon(icon, contentDescription = null, tint = Color.White)
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                            Text(label, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                        } else {
-                                            Text(label, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                            Icon(icon, contentDescription = null, tint = Color.White)
-                                        }
-                                    }
-                                }
-                            }
-                        }
+                        },
+                        modifier = Modifier.size(48.dp)
                     ) {
-                        Card(
-                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-                        shape = RoundedCornerShape(12.dp),
-                        border = androidx.compose.foundation.BorderStroke(
-                            1.dp,
-                            if (isValid) GreenSuccess.copy(alpha = 0.35f) else AmberWarning.copy(alpha = 0.35f)
-                        ),
-                        modifier = Modifier.fillMaxWidth()
-                    ) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(14.dp)
-                        ) {
-                            // Top Row: Date, Friendly Name, Status Pill, Edit & Delete actions
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    modifier = Modifier.weight(1f)
-                                ) {
-                                    Column {
-                                        Row(verticalAlignment = Alignment.CenterVertically) {
-                                            Text(
-                                                text = friendlyDate,
-                                                fontSize = 14.5.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-                                            Spacer(modifier = Modifier.width(6.dp))
-                                            Text(
-                                                text = "(${log.date})",
-                                                fontSize = 11.sp,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                        }
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search logs",
+                            tint = if (isSearchActive) AppTheme.colors.present else AppTheme.colors.ink
+                        )
+                    }
 
-                                        Spacer(modifier = Modifier.height(2.dp))
-
-                                        // Status Pill
-                                        Surface(
-                                            shape = RoundedCornerShape(6.dp),
-                                            color = if (isValid) GreenSuccess.copy(alpha = 0.14f) else AmberWarning.copy(alpha = 0.14f)
-                                        ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.5.dp)
-                                            ) {
-                                                Icon(
-                                                    imageVector = if (isValid) Icons.Default.CheckCircle else Icons.Default.Info,
-                                                    contentDescription = null,
-                                                    tint = if (isValid) GreenSuccess else AmberWarning,
-                                                    modifier = Modifier.size(12.dp)
-                                                )
-                                                Spacer(modifier = Modifier.width(4.dp))
-                                                Text(
-                                                    text = if (isValid) "Qualified WFO Day" else "Under ${String.format(Locale.US, "%.1f", uiState.settings.minHours)}h target",
-                                                    fontSize = 10.5.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = if (isValid) GreenSuccess else AmberWarning
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-
-                                Row {
-                                    IconButton(
-                                        onClick = {
-                                            editingLog = log
-                                            showManualDialog = true
-                                        },
-                                        modifier = Modifier.size(34.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Edit,
-                                            contentDescription = "Edit",
-                                            tint = BluePrimary,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-
-                                    IconButton(
-                                        onClick = { deletingLogDate = log.date },
-                                        modifier = Modifier.size(34.dp)
-                                    ) {
-                                        Icon(
-                                            Icons.Default.Delete,
-                                            contentDescription = "Delete",
-                                            tint = CrimsonDanger,
-                                            modifier = Modifier.size(18.dp)
-                                        )
-                                    }
-                                }
-                            }
-
-                            Spacer(modifier = Modifier.height(10.dp))
-
-                            // Data Metrics Cards Row: In Time, Out Time, Duration
-                            Surface(
-                                shape = RoundedCornerShape(8.dp),
-                                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .padding(horizontal = 10.dp, vertical = 8.dp),
-                                    horizontalArrangement = Arrangement.SpaceBetween,
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    // Punch In
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            Icons.Default.Login,
-                                            contentDescription = null,
-                                            tint = BluePrimary,
-                                            modifier = Modifier.size(15.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Column {
-                                            Text(
-                                                text = "Punch In",
-                                                fontSize = 9.5.sp,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                            Text(
-                                                text = DateUtils.formatTime12(log.inTime),
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-                                        }
-                                    }
-
-                                    // Punch Out
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            Icons.Default.Logout,
-                                            contentDescription = null,
-                                            tint = AmberWarning,
-                                            modifier = Modifier.size(15.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Column {
-                                            Text(
-                                                text = "Punch Out",
-                                                fontSize = 9.5.sp,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                            Text(
-                                                text = DateUtils.formatTime12(log.outTime),
-                                                fontSize = 12.sp,
-                                                fontWeight = FontWeight.SemiBold,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-                                        }
-                                    }
-
-                                    // Total Duration
-                                    Row(verticalAlignment = Alignment.CenterVertically) {
-                                        Icon(
-                                            Icons.Default.Schedule,
-                                            contentDescription = null,
-                                            tint = if (isValid) GreenSuccess else AmberWarning,
-                                            modifier = Modifier.size(15.dp)
-                                        )
-                                        Spacer(modifier = Modifier.width(4.dp))
-                                        Column {
-                                            Text(
-                                                text = "Total Time",
-                                                fontSize = 9.5.sp,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                                            )
-                                            Text(
-                                                text = log.formattedDuration,
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.Bold,
-                                                color = if (isValid) GreenSuccess else AmberWarning
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-
-                            if (!log.notes.isNullOrBlank()) {
-                                Spacer(modifier = Modifier.height(6.dp))
-                                Surface(
-                                    shape = RoundedCornerShape(6.dp),
-                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                                    modifier = Modifier.fillMaxWidth()
+                    // 2. Filter sheet trigger with badge
+                    BadgedBox(
+                        badge = {
+                            if (activeFilterCount > 0) {
+                                Badge(
+                                    containerColor = AppTheme.colors.present,
+                                    contentColor = MaterialTheme.colorScheme.onPrimary
                                 ) {
                                     Text(
-                                        text = "Note: ${log.notes}",
-                                        fontSize = 11.5.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
+                                        text = "$activeFilterCount",
+                                        style = MaterialTheme.typography.labelSmall
                                     )
                                 }
                             }
                         }
+                    ) {
+                        IconButton(
+                            onClick = { showFilterSheet = true },
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.FilterList,
+                                contentDescription = "Filter logs",
+                                tint = if (activeFilterCount > 0) AppTheme.colors.present else AppTheme.colors.ink
+                            )
+                        }
                     }
+
+                    // 3. Add manual log
+                    IconButton(
+                        onClick = {
+                            editingLog = null
+                            showManualDialog = true
+                        },
+                        modifier = Modifier.size(48.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Add,
+                            contentDescription = "Add log",
+                            tint = AppTheme.colors.ink
+                        )
+                    }
+
+                    // 4. Overflow menu
+                    Box {
+                        IconButton(
+                            onClick = { showOverflowMenu = true },
+                            modifier = Modifier.size(48.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "More actions",
+                                tint = AppTheme.colors.ink
+                            )
+                        }
+
+                        DropdownMenu(
+                            expanded = showOverflowMenu,
+                            onDismissRequest = { showOverflowMenu = false },
+                            shape = RoundedCornerShape(12.dp),
+                            containerColor = MaterialTheme.colorScheme.surfaceContainer
+                        ) {
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = "Export CSV",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = AppTheme.colors.ink
+                                    )
+                                },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    shareCsv(context, filteredLogs, uiState.settings.minHours)
+                                }
+                            )
+
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = "Export PDF summary",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = AppTheme.colors.ink
+                                    )
+                                },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    showReportMonthPicker = true
+                                }
+                            )
+
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = "Export JSON backup",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = AppTheme.colors.ink
+                                    )
+                                },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    exportJsonLauncher.launch("WFO_Backup_${DateUtils.todayDateStr()}.json")
+                                }
+                            )
+
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        text = "Import JSON backup",
+                                        style = MaterialTheme.typography.bodyLarge,
+                                        color = AppTheme.colors.ink
+                                    )
+                                },
+                                onClick = {
+                                    showOverflowMenu = false
+                                    importJsonLauncher.launch(arrayOf("application/json", "text/*"))
+                                }
+                            )
+                        }
+                    }
+                }
+            }
+
+            // Inline search field (toggled via header action)
+            if (isSearchActive) {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = {
+                        Text(
+                            text = "Search by date or note",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = AppTheme.colors.muted
+                        )
+                    },
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = null,
+                            tint = AppTheme.colors.muted,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(
+                                    imageVector = Icons.Default.Close,
+                                    contentDescription = "Clear search",
+                                    tint = AppTheme.colors.muted,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedContainerColor = AppTheme.colors.raised,
+                        unfocusedContainerColor = AppTheme.colors.raised,
+                        focusedBorderColor = AppTheme.colors.present,
+                        unfocusedBorderColor = AppTheme.colors.rule,
+                        focusedTextColor = AppTheme.colors.ink,
+                        unfocusedTextColor = AppTheme.colors.ink
+                    ),
+                    shape = RoundedCornerShape(12.dp),
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                    keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 4.dp)
+                )
+            }
+
+            // Summary: one clean line under header (no cards)
+            Text(
+                text = summaryText,
+                style = MaterialTheme.typography.bodyMedium,
+                color = AppTheme.colors.muted,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
+            )
+
+            HorizontalDivider(
+                color = AppTheme.colors.rule,
+                thickness = 1.dp
+            )
+
+            // Content: Empty states or grouped LazyColumn
+            when {
+                uiState.logs.isEmpty() -> {
+                    // Empty state: No logs at all
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Text(
+                                text = "No logs yet",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = AppTheme.colors.ink,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = "Punch in from the Dashboard or add a log.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = AppTheme.colors.muted,
+                                textAlign = TextAlign.Center
+                            )
+                            Spacer(modifier = Modifier.height(6.dp))
+                            WfoPrimaryButton(
+                                text = "Add log",
+                                onClick = {
+                                    editingLog = null
+                                    showManualDialog = true
+                                }
+                            )
+                        }
+                    }
+                }
+
+                filteredLogs.isEmpty() -> {
+                    // Empty state: No logs match filters/search
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 24.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Column(
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
+                        ) {
+                            Text(
+                                text = "No logs match these filters.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = AppTheme.colors.muted,
+                                textAlign = TextAlign.Center
+                            )
+                            WfoTextButton(
+                                text = "Clear filters",
+                                onClick = {
+                                    searchQuery = ""
+                                    filterStatus = StatusFilter.ALL
+                                    filterFromDate = ""
+                                    filterToDate = ""
+                                }
+                            )
+                        }
+                    }
+                }
+
+                else -> {
+                    // Grouped logs LazyColumn
+                    LazyColumn(
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        monthGroups.forEach { group ->
+                            stickyHeader(key = "header_${group.key}") {
+                                Surface(
+                                    color = AppTheme.colors.ground,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(horizontal = 16.dp, vertical = 8.dp),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = group.monthTitle,
+                                            style = MaterialTheme.typography.titleSmall,
+                                            color = AppTheme.colors.ink,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                        Text(
+                                            text = group.summary,
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = AppTheme.colors.muted
+                                        )
+                                    }
+                                }
+                            }
+
+                            items(
+                                items = group.logs,
+                                key = { it.date }
+                            ) { log ->
+                                val dismissState = rememberSwipeToDismissBoxState(
+                                    confirmValueChange = { dismissValue ->
+                                        if (dismissValue == SwipeToDismissBoxValue.EndToStart) {
+                                            markForDeletion(log)
+                                            true
+                                        } else {
+                                            false
+                                        }
+                                    }
+                                )
+
+                                SwipeToDismissBox(
+                                    state = dismissState,
+                                    enableDismissFromStartToEnd = false,
+                                    enableDismissFromEndToStart = true,
+                                    backgroundContent = {
+                                        val color = if (dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart) {
+                                            AppTheme.colors.danger
+                                        } else {
+                                            Color.Transparent
+                                        }
+                                        Box(
+                                            modifier = Modifier
+                                                .fillMaxSize()
+                                                .background(color)
+                                                .padding(horizontal = 20.dp),
+                                            contentAlignment = Alignment.CenterEnd
+                                        ) {
+                                            Row(
+                                                verticalAlignment = Alignment.CenterVertically,
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                            ) {
+                                                Icon(
+                                                    imageVector = Icons.Default.Delete,
+                                                    contentDescription = "Delete log",
+                                                    tint = MaterialTheme.colorScheme.onError,
+                                                    modifier = Modifier.size(20.dp)
+                                                )
+                                                Text(
+                                                    text = "Delete",
+                                                    style = MaterialTheme.typography.labelLarge,
+                                                    color = MaterialTheme.colorScheme.onError
+                                                )
+                                            }
+                                        }
+                                    },
+                                    content = {
+                                        LogRowItem(
+                                            log = log,
+                                            minHours = uiState.settings.minHours,
+                                            onClick = {
+                                                editingLog = log
+                                                showManualDialog = true
+                                            },
+                                            onDeleteViaAccessibility = {
+                                                markForDeletion(log)
+                                            }
+                                        )
+                                    }
+                                )
+                            }
+                        }
                     }
                 }
             }
@@ -778,10 +855,229 @@ fun LogHistoryScreen(
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun LogRowItem(
+    log: CheckInLog,
+    minHours: Double,
+    onClick: () -> Unit,
+    onDeleteViaAccessibility: () -> Unit
+) {
+    val isValid = remember(log, minHours) { log.isValidWFODay(minHours) }
+    val dateText = remember(log.date) {
+        val parsed = DateUtils.parseDate(log.date)
+        SimpleDateFormat("EEE d MMM", Locale.US).format(parsed)
+    }
+    val timeRangeText = remember(log.inTime, log.outTime) {
+        val inStr = DateUtils.formatTime12(log.inTime).lowercase(Locale.US)
+        val outStr = DateUtils.formatTime12(log.outTime).lowercase(Locale.US)
+        "$inStr to $outStr"
+    }
+    val durationText = remember(log.durationMinutes) {
+        val h = log.durationMinutes / 60
+        val m = log.durationMinutes % 60
+        String.format(Locale.US, "%dh %02dm", h, m)
+    }
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(AppTheme.colors.ground)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .defaultMinSize(minHeight = 48.dp)
+                .clickable(onClick = onClick)
+                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .semantics {
+                    customActions = listOf(
+                        CustomAccessibilityAction("Edit log") {
+                            onClick()
+                            true
+                        },
+                        CustomAccessibilityAction("Delete log") {
+                            onDeleteViaAccessibility()
+                            true
+                        }
+                    )
+                },
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            // Line 1: date on the left (no fixed width, weight 1), duration on right
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = dateText,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = AppTheme.colors.ink,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier.weight(1f)
+                )
+                Text(
+                    text = durationText,
+                    style = MaterialTheme.typography.bodyLarge,
+                    color = AppTheme.colors.ink,
+                    fontWeight = FontWeight.Medium,
+                    textAlign = TextAlign.End
+                )
+            }
+
+            // Line 2: time range, then the under-target indicator if applicable, wrapping onto a third line if needed
+            FlowRow(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Text(
+                    text = timeRangeText,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = AppTheme.colors.muted
+                )
+
+                if (!isValid) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier
+                            .background(
+                                color = AppTheme.colors.raised,
+                                shape = RoundedCornerShape(4.dp)
+                            )
+                            .border(
+                                width = 1.dp,
+                                color = AppTheme.colors.rule,
+                                shape = RoundedCornerShape(4.dp)
+                            )
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.HourglassBottom,
+                            contentDescription = null,
+                            tint = AppTheme.colors.muted,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Text(
+                            text = "Under target",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = AppTheme.colors.muted
+                        )
+                    }
+                }
+            }
+
+            // Notes go on the last line, ellipsized
+            if (!log.notes.isNullOrBlank()) {
+                Text(
+                    text = log.notes,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = AppTheme.colors.muted,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+
+        HorizontalDivider(
+            color = AppTheme.colors.rule,
+            thickness = 1.dp
+        )
+    }
+}
+
+@Composable
+private fun FilterDateField(
+    label: String,
+    dateValue: String,
+    onPickDate: () -> Unit,
+    onClearDate: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    val displayDateText = if (dateValue.isNotBlank()) {
+        try {
+            val parsed = DateUtils.parseDate(dateValue)
+            SimpleDateFormat("EEE d MMM", Locale.US).format(parsed)
+        } catch (_: Exception) {
+            dateValue
+        }
+    } else {
+        "Select"
+    }
+
+    Surface(
+        shape = RoundedCornerShape(12.dp),
+        color = AppTheme.colors.raised,
+        border = BorderStroke(1.dp, AppTheme.colors.rule),
+        modifier = modifier
+            .defaultMinSize(minHeight = 48.dp)
+            .clickable(onClick = onPickDate)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                modifier = Modifier.weight(1f)
+            ) {
+                Icon(
+                    imageVector = Icons.Default.CalendarMonth,
+                    contentDescription = null,
+                    tint = AppTheme.colors.muted,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Column {
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = AppTheme.colors.muted
+                    )
+                    Text(
+                        text = displayDateText,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (dateValue.isNotBlank()) AppTheme.colors.ink else AppTheme.colors.muted,
+                        fontWeight = if (dateValue.isNotBlank()) FontWeight.Medium else FontWeight.Normal
+                    )
+                }
+            }
+
+            if (dateValue.isNotBlank()) {
+                IconButton(
+                    onClick = onClearDate,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Close,
+                        contentDescription = "Clear $label date",
+                        tint = AppTheme.colors.muted,
+                        modifier = Modifier.size(16.dp)
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun escapeCsvField(value: String): String {
+    val escaped = value.replace("\"", "\"\"")
+    return if (escaped.contains(',') || escaped.contains('"') || escaped.contains('\n') || escaped.contains('\r')) {
+        "\"$escaped\""
+    } else {
+        escaped
+    }
+}
+
 private fun shareCsv(context: Context, logs: List<CheckInLog>, minHours: Double) {
     val csv = StringBuilder("Date,Check In,Check Out,Duration (Mins),Formatted Duration,Total Hours,Valid WFO Day,Notes\n")
     for (r in logs) {
-        csv.append("${r.date},${r.inTime},${r.outTime},${r.durationMinutes},${r.formattedDuration},${String.format(Locale.US, "%.2f", r.totalHours)},${r.isValidWFODay(minHours)},\"${r.notes ?: ""}\"\n")
+        val notesEscaped = escapeCsvField(r.notes ?: "")
+        val durationEscaped = escapeCsvField(r.formattedDuration)
+        csv.append("${r.date},${r.inTime},${r.outTime},${r.durationMinutes},$durationEscaped,${String.format(Locale.US, "%.2f", r.totalHours)},${r.isValidWFODay(minHours)},$notesEscaped\n")
     }
 
     val intent = Intent(Intent.ACTION_SEND).apply {
