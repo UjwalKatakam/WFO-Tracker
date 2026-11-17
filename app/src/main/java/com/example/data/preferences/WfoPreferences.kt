@@ -11,8 +11,11 @@ import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import com.example.util.SecurePreferencesHelper
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "wfo_settings")
 
@@ -65,6 +68,31 @@ class WfoPreferences(private val context: Context) {
         val LAST_TRANSIT_OFFSET = intPreferencesKey("last_transit_offset_mins")
         val BATTERY_OPT_DISMISSED = booleanPreferencesKey("battery_opt_dismissed")
         val PERSISTENT_UNDO_SUMMARY = stringPreferencesKey("persistent_undo_summary")
+    }
+
+    init {
+        CoroutineScope(Dispatchers.IO).launch {
+            try {
+                migrateLegacyTokenIfNeeded()
+            } catch (_: Exception) {
+            }
+        }
+    }
+
+    /**
+     * One-time migration: when legacy plaintext git_token exists in preferences,
+     * encrypt it into enc_git_token and remove the legacy key from disk.
+     */
+    suspend fun migrateLegacyTokenIfNeeded() {
+        context.dataStore.edit { prefs ->
+            if (prefs.contains(Keys.LEGACY_GIT_TOKEN)) {
+                val legacy = prefs[Keys.LEGACY_GIT_TOKEN] ?: ""
+                if (legacy.isNotEmpty() && prefs[Keys.ENCRYPTED_GIT_TOKEN].isNullOrEmpty()) {
+                    prefs[Keys.ENCRYPTED_GIT_TOKEN] = SecurePreferencesHelper.encrypt(legacy.trim())
+                }
+                prefs.remove(Keys.LEGACY_GIT_TOKEN)
+            }
+        }
     }
 
     val settingsFlow: Flow<WfoSettings> = context.dataStore.data.map { prefs ->

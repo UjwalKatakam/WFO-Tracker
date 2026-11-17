@@ -351,13 +351,7 @@ fun DashboardScreen(
                 viewModel.setTransitOffsetMinutes(mins)
             },
             onPickTimeClick = {
-                val defaultTime = if (uiState.customArrivedTimeInput.isNotBlank()) {
-                    uiState.customArrivedTimeInput
-                } else {
-                    val c = Calendar.getInstance()
-                    String.format(Locale.US, "%02d:%02d", c.get(Calendar.HOUR_OF_DAY), c.get(Calendar.MINUTE))
-                }
-                showNativeTimePicker(context, defaultTime) { picked ->
+                showNativeTimePicker(context, uiState.customArrivedTimeInput) { picked ->
                     viewModel.setCustomArrivedTimeInput(picked)
                 }
             },
@@ -367,6 +361,8 @@ fun DashboardScreen(
             onConfirmPunchIn = {
                 showArrivedEarlierSheet = false
                 viewModel.requestPunchIn(context)
+                viewModel.setTransitOffsetMinutes(0)
+                viewModel.setCustomArrivedTimeInput("")
             },
             onDismissRequest = {
                 // Correctness 1: reset transit offset to 0 and clear custom time when dismissed
@@ -435,7 +431,11 @@ fun DashboardScreen(
                 minHours = uiState.settings.minHours,
                 targetReached = uiState.targetReached,
                 targetTimeFormatted = uiState.targetTimeFormatted,
-                onPunchInClick = { viewModel.requestPunchIn(context) },
+                onPunchInClick = {
+                    viewModel.setTransitOffsetMinutes(0)
+                    viewModel.setCustomArrivedTimeInput("")
+                    viewModel.requestPunchIn(context)
+                },
                 onPunchOutClick = { viewModel.requestPunchOut(context) },
                 onArrivedEarlierClick = { showArrivedEarlierSheet = true }
             )

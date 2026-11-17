@@ -77,7 +77,7 @@ fun WfoPrimaryButton(
     isDanger: Boolean = false
 ) {
     val containerColor = if (isDanger) AppTheme.colors.danger else AppTheme.colors.present
-    val contentColor = if (AppTheme.colors.isDark) AppTheme.colors.ground else Color.White
+    val contentColor = if (AppTheme.colors.isDark) AppTheme.colors.ground else AppTheme.colors.raised
 
     Button(
         onClick = onClick,
@@ -427,7 +427,7 @@ fun WfoSwitchRow(
                 onCheckedChange = null,
                 enabled = enabled,
                 colors = SwitchDefaults.colors(
-                    checkedThumbColor = if (AppTheme.colors.isDark) AppTheme.colors.ground else Color.White,
+                    checkedThumbColor = if (AppTheme.colors.isDark) AppTheme.colors.ground else AppTheme.colors.raised,
                     checkedTrackColor = AppTheme.colors.present,
                     uncheckedThumbColor = AppTheme.colors.muted,
                     uncheckedTrackColor = AppTheme.colors.raised,

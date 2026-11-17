@@ -292,7 +292,7 @@ class WfoViewModel(application: Application) : AndroidViewModel(application) {
                     it.copy(
                         isPullRefreshing = false,
                         snackbarMessage = res.fold(
-                            onSuccess = { "Cloud Sync complete! Gist updated. ☁️" },
+                            onSuccess = { "Backup complete" },
                             onFailure = { err -> "Sync notice: ${err.message}" }
                         )
                     )
@@ -302,7 +302,7 @@ class WfoViewModel(application: Application) : AndroidViewModel(application) {
                 _uiState.update {
                     it.copy(
                         isPullRefreshing = false,
-                        snackbarMessage = "Dashboard refreshed! Local logs up to date."
+                        snackbarMessage = "Dashboard refreshed"
                     )
                 }
             }
@@ -321,9 +321,9 @@ class WfoViewModel(application: Application) : AndroidViewModel(application) {
                 it.copy(
                     showArrivalPrompt = false,
                     snackbarMessage = if (offsetMinutes > 0) {
-                        "Punched in with +${offsetMinutes}m transit offset applied! 🏢"
+                        "Punched in, ${offsetMinutes} min earlier"
                     } else {
-                        "Punched in now! 🏢"
+                        "Punched in"
                     }
                 )
             }
@@ -366,7 +366,7 @@ class WfoViewModel(application: Application) : AndroidViewModel(application) {
             com.example.widget.WfoAppWidgetProvider.updateAllWidgets(context)
             _uiState.update {
                 it.copy(
-                    snackbarMessage = if (!initialNote.isNullOrBlank()) "Punched In! Note: \"$initialNote\" 🏢" else "Punched In Successfully! 🏢",
+                    snackbarMessage = if (!initialNote.isNullOrBlank()) "Punched in with note" else "Punched in",
                     geofenceAlertMessage = null,
                     showPunchInWithNoteDialog = false
                 )
@@ -397,7 +397,7 @@ class WfoViewModel(application: Application) : AndroidViewModel(application) {
             _uiState.update {
                 it.copy(
                     showForgotPunchInDialog = false,
-                    snackbarMessage = "Punched in backdated to ${timeFormat.format(Date(startMillis))}! ⏱️"
+                    snackbarMessage = "Punched in at ${timeFormat.format(Date(startMillis))}"
                 )
             }
         }
@@ -425,7 +425,7 @@ class WfoViewModel(application: Application) : AndroidViewModel(application) {
             _uiState.update {
                 it.copy(
                     showTimerQuickActionMenu = false,
-                    snackbarMessage = "Arrival time adjusted to ${timeFormat.format(Date(newStart))}! ⏱️"
+                    snackbarMessage = "Arrival time adjusted to ${timeFormat.format(Date(newStart))}"
                 )
             }
         }
@@ -445,7 +445,7 @@ class WfoViewModel(application: Application) : AndroidViewModel(application) {
             _uiState.update {
                 it.copy(
                     showTimerQuickActionMenu = false,
-                    snackbarMessage = "Today registered as Approved WFH! 🏠"
+                    snackbarMessage = "Today marked as work from home"
                 )
             }
         }
@@ -488,7 +488,7 @@ class WfoViewModel(application: Application) : AndroidViewModel(application) {
                     it.copy(
                         undoAvailable = true,
                         undoMessage = "Session logged (${log.formattedDuration} ending at ${log.formattedOutTime}). Mistake?",
-                        snackbarMessage = "Punched Out! Logged ${log.formattedDuration} total."
+                        snackbarMessage = "Punched out. ${log.formattedDuration} logged."
                     )
                 }
             }
@@ -507,7 +507,7 @@ class WfoViewModel(application: Application) : AndroidViewModel(application) {
                     it.copy(
                         undoAvailable = false,
                         undoMessage = null,
-                        snackbarMessage = "Punch out undone! Live timer restored. ⏱️"
+                        snackbarMessage = "Punch out undone. Timer restored."
                     )
                 }
             }
@@ -532,7 +532,7 @@ class WfoViewModel(application: Application) : AndroidViewModel(application) {
                 notes = notes
             )
             repository.insertLog(log)
-            _uiState.update { it.copy(snackbarMessage = "Attendance log saved for $date!") }
+            _uiState.update { it.copy(snackbarMessage = "Attendance log saved for $date") }
         }
     }
 
@@ -548,7 +548,7 @@ class WfoViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val count = repository.insertLeaveRange(from, to, type, title)
             _uiState.update {
-                it.copy(snackbarMessage = "Saved $count day(s) of ${title.ifBlank { type }}!")
+                it.copy(snackbarMessage = "Saved $count day(s) of ${title.ifBlank { type }}")
             }
         }
     }
@@ -596,7 +596,7 @@ class WfoViewModel(application: Application) : AndroidViewModel(application) {
                 departureReminderHours = departureReminderHours,
                 autoMuteHolidays = autoMuteHolidays
             )
-            _uiState.update { it.copy(snackbarMessage = "Settings updated successfully!") }
+            _uiState.update { it.copy(snackbarMessage = "Settings updated") }
         }
     }
 
@@ -623,7 +623,7 @@ class WfoViewModel(application: Application) : AndroidViewModel(application) {
     fun clearAllData() {
         viewModelScope.launch {
             repository.clearAllData()
-            _uiState.update { it.copy(snackbarMessage = "All logs and data have been wiped.") }
+            _uiState.update { it.copy(snackbarMessage = "All logs and data cleared") }
         }
     }
 

@@ -34,9 +34,9 @@ class PunchActionReceiver : BroadcastReceiver() {
 
                     Handler(Looper.getMainLooper()).post {
                         val msg = if (log != null) {
-                            "🚪 Punched Out! Logged ${log.formattedDuration} total."
+                            "Punched out. ${log.formattedDuration} logged."
                         } else {
-                            "🚪 Punched Out recorded."
+                            "Punched out"
                         }
                         Toast.makeText(appContext, msg, Toast.LENGTH_SHORT).show()
                     }
@@ -53,7 +53,7 @@ class PunchActionReceiver : BroadcastReceiver() {
 
                     Handler(Looper.getMainLooper()).post {
                         val timeStr = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(startMillis))
-                        Toast.makeText(appContext, "🏢 Punched In at $timeStr!", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(appContext, "Punched in at $timeStr", Toast.LENGTH_SHORT).show()
                     }
                 }
             }

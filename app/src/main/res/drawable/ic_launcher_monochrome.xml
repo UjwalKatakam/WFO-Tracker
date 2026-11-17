@@ -1,0 +1,112 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!--
+        Monochrome adaptive icon.
+        All artwork uses #000000.
+        Active segments: 8, stroke width 6.
+        Inactive segments: 2, stroke width 2.
+        Ring pitch: 36 degrees.
+        Segment sweep: 28 degrees.
+        Gap: 8 degrees.
+        Start angle(i) = -104 + 36*i degrees.
+        End angle(i) = start angle + 28 degrees.
+        Center = (54,54); radius = 25.
+    -->
+
+    <!-- Eight active segments -->
+    <path
+        android:pathData="M 47.952,29.743 A 25,25 0 0 1 60.048,29.743"
+        android:strokeColor="#000000"
+        android:strokeWidth="6"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+
+    <path
+        android:pathData="M 63.365,30.820 A 25,25 0 0 1 73.151,37.930"
+        android:strokeColor="#000000"
+        android:strokeWidth="6"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+
+    <path
+        android:pathData="M 75.201,40.752 A 25,25 0 0 1 78.939,52.256"
+        android:strokeColor="#000000"
+        android:strokeWidth="6"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+
+    <path
+        android:pathData="M 78.939,55.744 A 25,25 0 0 1 75.201,67.248"
+        android:strokeColor="#000000"
+        android:strokeWidth="6"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+
+    <path
+        android:pathData="M 73.151,70.070 A 25,25 0 0 1 63.365,77.180"
+        android:strokeColor="#000000"
+        android:strokeWidth="6"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+
+    <path
+        android:pathData="M 60.048,78.257 A 25,25 0 0 1 47.952,78.257"
+        android:strokeColor="#000000"
+        android:strokeWidth="6"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+
+    <path
+        android:pathData="M 44.635,77.180 A 25,25 0 0 1 34.849,70.070"
+        android:strokeColor="#000000"
+        android:strokeWidth="6"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+
+    <path
+        android:pathData="M 32.799,67.248 A 25,25 0 0 1 29.061,55.744"
+        android:strokeColor="#000000"
+        android:strokeWidth="6"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+
+    <!-- Two inactive segments: outline-only, thinner stroke -->
+    <path
+        android:pathData="M 29.061,52.256 A 25,25 0 0 1 32.799,40.752"
+        android:strokeColor="#000000"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+
+    <path
+        android:pathData="M 34.849,37.930 A 25,25 0 0 1 44.635,30.820"
+        android:strokeColor="#000000"
+        android:strokeWidth="2"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+
+    <!-- Clock hands -->
+    <path
+        android:pathData="M 54,54 L 40,43"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+
+    <path
+        android:pathData="M 54,54 L 68,43"
+        android:strokeColor="#000000"
+        android:strokeWidth="2.5"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+
+    <!-- Center pivot -->
+    <path
+        android:pathData="M 54,51.5 A 2.5,2.5 0 1 0 54,56.5 A 2.5,2.5 0 1 0 54,51.5"
+        android:fillColor="#000000" />
+
+</vector>

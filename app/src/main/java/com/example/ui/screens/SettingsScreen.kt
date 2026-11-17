@@ -50,6 +50,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.password
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
@@ -145,17 +147,18 @@ fun SettingsScreen(
             },
             text = {
                 Text(
-                    text = "This will permanently delete all local check-in records and leaves from this device.\n\nYour remote backup on GitHub Gist (if configured) will not be deleted. You can export a local backup file first if you wish.",
+                    text = "This permanently deletes all attendance logs, leave records, settings, GitHub access token, and Gist ID from this device. Your remote GitHub Gist is not affected. You can export a backup file first to keep a copy of your data.",
                     style = MaterialTheme.typography.bodyMedium,
                     color = AppTheme.colors.muted
                 )
             },
             confirmButton = {
                 WfoTextButton(
-                    text = "Clear data",
+                    text = "Delete everything",
                     isDanger = true,
                     onClick = {
                         viewModel.clearAllData()
+                        viewModel.updateSettings(com.example.data.preferences.WfoSettings())
                         showClearDataDialog = false
                     }
                 )
@@ -830,7 +833,9 @@ private fun EditTokenSheet(
                     imeAction = ImeAction.Done
                 ),
                 keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
-                modifier = Modifier.fillMaxWidth()
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics { password() }
             )
 
             Spacer(modifier = Modifier.height(20.dp))

@@ -93,8 +93,8 @@ class PunchTimerService : Service() {
         )
 
         val notification = NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("🏢 Punched In — Working at Office")
-            .setContentText("Target Goal (${String.format(Locale.US, "%.1f", targetHours)}h): $targetTimeStr")
+            .setContentTitle("Punched in")
+            .setContentText("Target (${String.format(Locale.US, "%.1f", targetHours)}h): $targetTimeStr")
             .setSmallIcon(R.mipmap.ic_launcher)
             .setOngoing(true)
             .setUsesChronometer(true)
@@ -103,7 +103,7 @@ class PunchTimerService : Service() {
             .setContentIntent(openAppPendingIntent)
             .addAction(
                 android.R.drawable.ic_media_pause,
-                "Stop / Punch Out",
+                "Punch out",
                 punchOutPendingIntent
             )
             .addAction(
@@ -180,18 +180,18 @@ class PunchTimerService : Service() {
 
         val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
         val reminderNotification = NotificationCompat.Builder(this, DEPARTURE_CHANNEL_ID)
-            .setContentTitle("🚪 Still at the Office? (${String.format(Locale.US, "%.1f", hours)}h active)")
-            .setContentText("Did you forget to punch out? Tap to review or punch out now.")
+            .setContentTitle("Still punched in after ${String.format(Locale.US, "%.1f", hours)}h")
+            .setContentText("Review your session or punch out.")
             .setStyle(
                 NotificationCompat.BigTextStyle()
-                    .bigText("Your timer has been running for over ${String.format(Locale.US, "%.1f", hours)} hours. If you've already left, tap to punch out or backdate your departure time.")
+                    .bigText("Your session has been running for over ${String.format(Locale.US, "%.1f", hours)} hours. Tap to punch out or adjust departure time.")
             )
             .setSmallIcon(R.mipmap.ic_launcher)
             .setAutoCancel(true)
             .setContentIntent(openAppPendingIntent)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setSound(soundUri)
-            .addAction(android.R.drawable.ic_lock_power_off, "Punch Out Now", punchOutNowPendingIntent)
+            .addAction(android.R.drawable.ic_lock_power_off, "Punch out", punchOutNowPendingIntent)
             .build()
 
         val notificationManager = getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
@@ -212,8 +212,8 @@ class PunchTimerService : Service() {
 
         val soundUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION)
         val alertNotification = NotificationCompat.Builder(this, ALERT_CHANNEL_ID)
-            .setContentTitle("🎉 Daily WFO Quota Achieved!")
-            .setContentText("Congratulations! You have completed your ${String.format(Locale.US, "%.1f", targetHours)} hours target.")
+            .setContentTitle("Daily target reached")
+            .setContentText("You completed your ${String.format(Locale.US, "%.1f", targetHours)} hours target.")
             .setSmallIcon(R.mipmap.ic_launcher)
             .setAutoCancel(true)
             .setContentIntent(pendingIntent)

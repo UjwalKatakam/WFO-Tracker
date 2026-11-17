@@ -1,27 +1,22 @@
 package com.example.ui.components
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -30,15 +25,10 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.example.ui.theme.AmberWarning
-import com.example.ui.theme.BluePrimary
-import com.example.ui.theme.GreenSuccess
-import com.example.ui.theme.PurpleExclusion
+import com.example.ui.theme.AppTheme
 import com.example.ui.viewmodel.WfoUiState
 import java.util.Locale
 
@@ -55,6 +45,8 @@ fun WeeklyStreakBreakdownDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(12.dp),
+        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
         title = {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -62,91 +54,87 @@ fun WeeklyStreakBreakdownDialog(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(36.dp)
-                            .background(AmberWarning.copy(alpha = 0.2f), CircleShape),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.LocalFireDepartment,
-                            contentDescription = null,
-                            tint = AmberWarning,
-                            modifier = Modifier.size(22.dp)
-                        )
-                    }
+                    Icon(
+                        imageVector = Icons.Default.LocalFireDepartment,
+                        contentDescription = null,
+                        tint = AppTheme.colors.present,
+                        modifier = Modifier.size(24.dp)
+                    )
                     Spacer(modifier = Modifier.width(10.dp))
                     Column {
                         Text(
-                            text = "Weekly Streak Breakdown",
-                            fontSize = 17.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = MaterialTheme.colorScheme.onSurface
+                            text = "Weekly streak",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Medium,
+                            color = AppTheme.colors.ink
                         )
                         Text(
-                            text = "$streak-week consistency streak",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                            text = if (streak == 1) "1 week streak" else "$streak weeks streak",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = AppTheme.colors.muted
                         )
                     }
                 }
-                IconButton(onClick = onDismiss, modifier = Modifier.size(32.dp)) {
-                    Icon(Icons.Default.Close, contentDescription = "Close")
+                IconButton(
+                    onClick = onDismiss,
+                    modifier = Modifier.size(48.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Close,
+                        contentDescription = "Close",
+                        tint = AppTheme.colors.muted
+                    )
                 }
             }
         },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
-                // Streak Progress Summary Card
-                Card(
-                    shape = RoundedCornerShape(10.dp),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.4f)),
+                // Streak Progress Summary Row
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = AppTheme.colors.raised,
+                    border = BorderStroke(1.dp, AppTheme.colors.rule),
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(12.dp),
+                            .padding(14.dp),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Column {
                             Text(
-                                text = "THIS WEEK'S TARGET",
-                                fontSize = 10.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                text = "Weekly target",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = AppTheme.colors.muted
                             )
                             Text(
-                                text = "$validDaysThisWeek / $targetDays Days Completed",
-                                fontSize = 15.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (validDaysThisWeek >= targetDays) GreenSuccess else BluePrimary
+                                text = "$validDaysThisWeek of $targetDays days completed",
+                                style = MaterialTheme.typography.bodyMedium,
+                                fontWeight = FontWeight.Medium,
+                                color = if (validDaysThisWeek >= targetDays) AppTheme.colors.present else AppTheme.colors.ink
                             )
                         }
-                        Surface(
-                            shape = RoundedCornerShape(6.dp),
-                            color = if (validDaysThisWeek >= targetDays) GreenSuccess.copy(alpha = 0.2f) else AmberWarning.copy(alpha = 0.2f)
-                        ) {
-                            Text(
-                                text = if (validDaysThisWeek >= targetDays) "STREAK SAFE ✓" else "$daysRemaining DAY${if (daysRemaining == 1) "" else "S"} TO GO",
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = if (validDaysThisWeek >= targetDays) GreenSuccess else AmberWarning,
-                                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp)
-                            )
-                        }
+                        Text(
+                            text = if (validDaysThisWeek >= targetDays) {
+                                "Target met"
+                            } else {
+                                if (daysRemaining == 1) "1 day to go" else "$daysRemaining days to go"
+                            },
+                            style = MaterialTheme.typography.labelSmall,
+                            fontWeight = FontWeight.Medium,
+                            color = if (validDaysThisWeek >= targetDays) AppTheme.colors.present else AppTheme.colors.short
+                        )
                     }
                 }
 
                 Spacer(modifier = Modifier.height(14.dp))
 
                 Text(
-                    text = "DAYS IN CURRENT WEEK",
-                    fontSize = 11.sp,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    letterSpacing = 0.5.sp
+                    text = "Days this week",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = AppTheme.colors.muted
                 )
 
                 Spacer(modifier = Modifier.height(6.dp))
@@ -159,89 +147,63 @@ fun WeeklyStreakBreakdownDialog(
                     breakdown.forEach { day ->
                         Surface(
                             shape = RoundedCornerShape(8.dp),
-                            color = MaterialTheme.colorScheme.surface,
-                            border = androidx.compose.foundation.BorderStroke(
-                                1.dp,
-                                when {
-                                    day.isValidWfo -> GreenSuccess.copy(alpha = 0.5f)
-                                    day.isLeave -> PurpleExclusion.copy(alpha = 0.5f)
-                                    day.hours > 0 -> AmberWarning.copy(alpha = 0.5f)
-                                    else -> MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.4f)
-                                }
-                            ),
-                            modifier = Modifier.fillMaxWidth()
+                            color = AppTheme.colors.ground,
+                            border = BorderStroke(1.dp, AppTheme.colors.rule),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .defaultMinSize(minHeight = 44.dp)
                         ) {
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(horizontal = 10.dp, vertical = 8.dp),
+                                    .padding(horizontal = 12.dp, vertical = 8.dp),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     Text(
                                         text = day.dayName,
-                                        fontSize = 13.sp,
-                                        fontWeight = FontWeight.Bold,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium,
                                         modifier = Modifier.width(36.dp),
-                                        color = MaterialTheme.colorScheme.onSurface
+                                        color = AppTheme.colors.ink
                                     )
                                     Text(
                                         text = day.dateKey.substring(5),
-                                        fontSize = 11.5.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = AppTheme.colors.muted
                                     )
                                 }
 
                                 Row(verticalAlignment = Alignment.CenterVertically) {
                                     when {
                                         day.isValidWfo -> {
-                                            Surface(
-                                                shape = RoundedCornerShape(4.dp),
-                                                color = GreenSuccess.copy(alpha = 0.18f)
-                                            ) {
-                                                Text(
-                                                    text = "✓ ${String.format(Locale.US, "%.1f", day.hours)}h (Valid)",
-                                                    fontSize = 11.sp,
-                                                    fontWeight = FontWeight.Bold,
-                                                    color = GreenSuccess,
-                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                                )
-                                            }
+                                            Text(
+                                                text = "${String.format(Locale.US, "%.1f", day.hours)}h (office)",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                fontWeight = FontWeight.Medium,
+                                                color = AppTheme.colors.present
+                                            )
                                         }
                                         day.isLeave -> {
-                                            Surface(
-                                                shape = RoundedCornerShape(4.dp),
-                                                color = PurpleExclusion.copy(alpha = 0.18f)
-                                            ) {
-                                                Text(
-                                                    text = "🌴 ${day.leaveTitle ?: "Leave"}",
-                                                    fontSize = 11.sp,
-                                                    fontWeight = FontWeight.Medium,
-                                                    color = PurpleExclusion,
-                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                                )
-                                            }
+                                            Text(
+                                                text = day.leaveTitle ?: "Leave",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = AppTheme.colors.muted
+                                            )
                                         }
                                         day.hours > 0 -> {
-                                            Surface(
-                                                shape = RoundedCornerShape(4.dp),
-                                                color = AmberWarning.copy(alpha = 0.18f)
-                                            ) {
-                                                Text(
-                                                    text = "◷ ${String.format(Locale.US, "%.1f", day.hours)}h (<${uiState.settings.minHours}h)",
-                                                    fontSize = 11.sp,
-                                                    fontWeight = FontWeight.Medium,
-                                                    color = AmberWarning,
-                                                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                                                )
-                                            }
+                                            Text(
+                                                text = "${String.format(Locale.US, "%.1f", day.hours)}h (short)",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = AppTheme.colors.short
+                                            )
                                         }
                                         else -> {
                                             Text(
-                                                text = if (day.isFutureOrRest) "— Rest / Pending" else "— No attendance",
-                                                fontSize = 11.sp,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                                                text = if (day.isFutureOrRest) "Rest" else "No log",
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = AppTheme.colors.muted
                                             )
                                         }
                                     }
@@ -260,22 +222,23 @@ fun WeeklyStreakBreakdownDialog(
                     Icon(
                         Icons.Default.Info,
                         contentDescription = null,
-                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        tint = AppTheme.colors.muted,
                         modifier = Modifier.size(14.dp)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
-                        text = "A week qualifies when ≥$targetDays days meet ${uiState.settings.minHours}h. Leaves preserve streak continuity.",
-                        fontSize = 10.5.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                        text = "A week qualifies when at least $targetDays days meet ${uiState.settings.minHours}h. Approved leaves preserve streak continuity.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = AppTheme.colors.muted
                     )
                 }
             }
         },
         confirmButton = {
-            Button(onClick = onDismiss) {
-                Text("Got It")
-            }
+            WfoTextButton(
+                text = "Close",
+                onClick = onDismiss
+            )
         }
     )
 }

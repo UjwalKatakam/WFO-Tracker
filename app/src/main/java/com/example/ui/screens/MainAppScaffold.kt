@@ -54,6 +54,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.core.content.ContextCompat
 import com.example.ui.theme.AppTheme
 import com.example.ui.viewmodel.WfoViewModel
@@ -133,6 +135,7 @@ fun MainAppScaffold(
                                     modifier = Modifier
                                         .size(8.dp)
                                         .background(AppTheme.colors.present, CircleShape)
+                                        .semantics { this.contentDescription = "Session active" }
                                 )
                             }
                         }
@@ -190,7 +193,9 @@ fun MainAppScaffold(
                                         badge = {
                                             Badge(
                                                 containerColor = AppTheme.colors.present,
-                                                modifier = Modifier.size(6.dp)
+                                                modifier = Modifier
+                                                    .size(6.dp)
+                                                    .semantics { this.contentDescription = "Session active" }
                                             )
                                         }
                                     ) {
@@ -208,11 +213,11 @@ fun MainAppScaffold(
                                 )
                             },
                             colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = AppTheme.colors.ink,
+                                selectedIconColor = AppTheme.colors.present,
                                 unselectedIconColor = AppTheme.colors.muted,
-                                selectedTextColor = AppTheme.colors.ink,
+                                selectedTextColor = AppTheme.colors.present,
                                 unselectedTextColor = AppTheme.colors.muted,
-                                indicatorColor = AppTheme.colors.raised
+                                indicatorColor = MaterialTheme.colorScheme.secondaryContainer
                             ),
                             modifier = Modifier.testTag(dest.testTag)
                         )

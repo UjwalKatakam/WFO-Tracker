@@ -33,28 +33,6 @@ val LightPresent = Color(0xFF247564) // 5.6:1 on LightRaised
 val LightShort = Color(0xFF9E5D0A)   // 5.1:1 on LightRaised
 val LightDanger = Color(0xFFC53328)  // 5.3:1 on LightRaised
 
-// TODO(remove after Phase 5): Backward compatibility aliases retained strictly to avoid breaking screens before Phases 2-5 refactor.
-val BluePrimary = DarkPresent
-val BluePrimaryDark = Color(0xFF1B594C)
-val BlueLight = DarkPresent
-val GreenSuccess = DarkPresent
-val GreenSuccessDark = Color(0xFF1B594C)
-val GreenSuccessGlow = DarkPresent
-val AmberWarning = DarkShort
-val AmberLight = DarkShort
-val CrimsonDanger = DarkDanger
-val CrimsonDark = Color(0xFFA83228)
-val PurpleExclusion = DarkMuted
-val PurpleLight = DarkMuted
-val DarkBg = DarkGround
-val DarkSurface = DarkRaised
-val DarkSurfaceElevated = DarkRaised
-val DarkBorder = DarkRule
-val LightBg = LightGround
-val LightSurface = LightRaised
-val LightSurfaceElevated = LightRaised
-val LightBorder = LightRule
-
 @Immutable
 data class AppColors(
     val ground: Color,

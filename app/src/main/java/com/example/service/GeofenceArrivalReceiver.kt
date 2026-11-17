@@ -19,6 +19,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import java.util.Locale
 
 class GeofenceArrivalReceiver : BroadcastReceiver() {
 
@@ -129,20 +130,20 @@ class GeofenceArrivalReceiver : BroadcastReceiver() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
 
-            val distanceText = if (distanceKm < 0.1) "at office" else String.format("%.2f km away", distanceKm)
+            val distanceText = if (distanceKm < 0.1) "at office" else String.format(Locale.US, "%.2f km away", distanceKm)
             val notification = NotificationCompat.Builder(context, GEOFENCE_CHANNEL_ID)
                 .setSmallIcon(R.mipmap.ic_launcher)
-                .setContentTitle("📍 Arrived at Office ($distanceText)")
-                .setContentText("You've arrived! Ready to punch in? Tap to customize offset or pick below.")
+                .setContentTitle("Arrived at the office ($distanceText)")
+                .setContentText("Ready to punch in. Tap to review or punch in.")
                 .setStyle(
                     NotificationCompat.BigTextStyle()
-                        .bigText("You've arrived at the office! Punch in now, or choose whether to backdate with your transit time.")
+                        .bigText("Punch in now or apply transit offset.")
                 )
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setAutoCancel(true)
                 .setContentIntent(openAppPendingIntent)
-                .addAction(R.drawable.widget_button_bg, "Punch In (Now)", punchNowPendingIntent)
-                .addAction(R.drawable.widget_button_bg, "+15m Transit?", addOffsetPendingIntent)
+                .addAction(R.drawable.widget_button_bg, "Punch in now", punchNowPendingIntent)
+                .addAction(R.drawable.widget_button_bg, "+15 min transit", addOffsetPendingIntent)
                 .build()
 
             notificationManager.notify(NOTIFICATION_ID_ARRIVAL, notification)

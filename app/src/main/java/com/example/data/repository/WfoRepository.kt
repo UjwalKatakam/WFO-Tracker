@@ -330,7 +330,7 @@ class WfoRepository(
             )
 
             if (response.isSuccessful) {
-                Result.success("Backed up ${logs.size} check-ins, ${leaves.size} leaves to GitHub Gist! ☁️")
+                Result.success("Backed up ${logs.size} logs and ${leaves.size} leave days to your Gist")
             } else {
                 val code = response.code()
                 val err = when (code) {
@@ -436,7 +436,7 @@ class WfoRepository(
                 SyncSummary(
                     logsAdded = logsMerged,
                     leavesAdded = leavesMerged,
-                    message = "Synced from Cloud! Merged $logsMerged new check-in(s) and $leavesMerged exclusion(s)."
+                    message = "Synced from cloud. Merged $logsMerged new check-in(s) and $leavesMerged exclusion(s)."
                 )
             )
         } catch (e: Exception) {
@@ -543,7 +543,7 @@ class WfoRepository(
                 SyncSummary(
                     logsAdded = logsAdded,
                     leavesAdded = leavesAdded,
-                    message = "Successfully imported $logsAdded new check-in(s) and $leavesAdded exclusion(s)!"
+                    message = "Imported $logsAdded new check-in(s) and $leavesAdded exclusion(s)."
                 )
             )
         } catch (e: Exception) {

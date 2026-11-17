@@ -31,11 +31,16 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -163,19 +168,33 @@ fun DashboardPunchControl(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                // Timer stays on one line and auto-scales down on compact widths/high font scales
+                // Timer stays on one line and shrinks to fit at font scale 1.3
                 BoxWithConstraints(
                     modifier = Modifier.fillMaxWidth(),
                     contentAlignment = Alignment.Center
                 ) {
-                    val fontSize = if (maxWidth < 360.dp) 44.sp else 56.sp
+                    val fontScale = LocalDensity.current.fontScale
+                    val baseSp = if (maxWidth < 360.dp) 44f else 56f
+                    // If font scale is magnified (e.g. 1.3), initialize proportionately so it does not wrap/clip
+                    var currentFontSize by remember(timerText, maxWidth, fontScale) {
+                        val initial = if (fontScale > 1.05f) (baseSp / fontScale).coerceAtLeast(32f).sp else baseSp.sp
+                        mutableStateOf(initial)
+                    }
+
                     Text(
                         text = timerText,
-                        style = MaterialTheme.typography.displayLarge.copy(fontSize = fontSize),
+                        style = MaterialTheme.typography.displayLarge.copy(fontSize = currentFontSize),
                         color = AppTheme.colors.ink,
                         maxLines = 1,
                         softWrap = false,
-                        textAlign = TextAlign.Center
+                        textAlign = TextAlign.Center,
+                        onTextLayout = { layoutResult ->
+                            if (layoutResult.hasVisualOverflow || layoutResult.didOverflowWidth) {
+                                if (currentFontSize.value > 22f) {
+                                    currentFontSize = (currentFontSize.value * 0.9f).sp
+                                }
+                            }
+                        }
                     )
                 }
 
@@ -259,7 +278,7 @@ fun ArrivedEarlierBottomSheet(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                listOf(0 to "Now", 5 to "5 min", 7 to "7 min", 10 to "10 min", 15 to "15 min").forEach { (mins, label) ->
+                listOf(0 to "Now", 5 to "5 min", 10 to "10 min", 15 to "15 min").forEach { (mins, label) ->
                     val isSelected = selectedOffsetMinutes == mins && customTimeInput.isBlank()
                     WfoChip(
                         text = label,
@@ -405,7 +424,10 @@ fun DashboardThisWeek(
                 val isFuture = day.isFutureOrRest && !isToday
 
                 val fullDayName = fullDayNames.getOrElse(index) { day.dayName }
-                val hoursFormatted = String.format(Locale.US, "%dh %02dm", (day.hours).toInt(), ((day.hours % 1.0) * 60).toInt())
+                val totalMinutes = (day.hours * 60).toInt()
+                val h = totalMinutes / 60
+                val m = totalMinutes % 60
+                val hoursFormatted = if (m > 0) "${h}h ${m}m" else "${h}h"
 
                 val statusDescription = when {
                     isPresent -> "present, $hoursFormatted"

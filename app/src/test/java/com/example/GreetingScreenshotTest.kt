@@ -2,7 +2,7 @@ package com.example
 
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onRoot
-import com.example.ui.components.CircularProgressTimer
+import com.example.ui.components.WfoQuotaBar
 import com.example.ui.theme.MyApplicationTheme
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
 import com.github.takahirom.roborazzi.captureRoboImage
@@ -24,14 +24,10 @@ class GreetingScreenshotTest {
   fun greeting_screenshot() {
     composeTestRule.setContent {
       MyApplicationTheme {
-        CircularProgressTimer(
-          isPunchedIn = true,
-          elapsedSeconds = 14400L,
-          targetHours = 8.0,
-          countdownMode = false,
-          targetReached = false,
-          onToggleCountdown = {},
-          onPunchClick = {}
+        WfoQuotaBar(
+          totalRequired = 4,
+          completed = 3,
+          underMinimum = 0
         )
       }
     }
