@@ -10,19 +10,19 @@ val ButtonShape = CircleShape
 val ChipShape = CircleShape
 
 // Sheet shape used explicitly by WfoBottomSheet
-val SheetShape = RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)
+val SheetShape = RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp)
 
-// Discrete calendar cell shape
-val CalendarCellShape = RoundedCornerShape(4.dp)
-val SurfaceGroupShape = RoundedCornerShape(12.dp)
+// Discrete calendar cell shape & card/dialog group shape
+val CalendarCellShape = RoundedCornerShape(8.dp)
+val SurfaceGroupShape = RoundedCornerShape(16.dp)
 
 // Material 3 Shapes:
-// - small = 4.dp
-// - medium, large, extraLarge = 12.dp (ensuring dialogs/pickers don't get pill/circle shape)
+// - extraSmall, small = 8.dp
+// - medium, large, extraLarge = 16.dp (cards, dialogs, pickers)
 val Shapes = Shapes(
-    extraSmall = RoundedCornerShape(4.dp),
-    small = RoundedCornerShape(4.dp),
-    medium = RoundedCornerShape(12.dp),
-    large = RoundedCornerShape(12.dp),
-    extraLarge = RoundedCornerShape(12.dp)
+    extraSmall = RoundedCornerShape(8.dp),
+    small = RoundedCornerShape(8.dp),
+    medium = RoundedCornerShape(16.dp),
+    large = RoundedCornerShape(16.dp),
+    extraLarge = RoundedCornerShape(16.dp)
 )

@@ -1,14 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- App Palette: Light Mode -->
-    <color name="app_ground">#F5F6F8</color>
-    <color name="app_raised">#FFFFFF</color>
-    <color name="app_rule">#DFE2E6</color>
-    <color name="app_ink">#15171A</color>
-    <color name="app_muted">#5E6570</color>
-    <color name="app_present">#247564</color>
-    <color name="app_short">#9E5D0A</color>
-    <color name="app_danger">#C53328</color>
+    <color name="app_ground">#F0FDF4</color>
+    <color name="app_raised">#DCFCE7</color>
+    <color name="app_sheet">#FFFFFF</color>
+    <color name="app_rule">#BBE5C8</color>
+    <color name="app_ink">#0B1F17</color>
+    <color name="app_muted">#5B7266</color>
+    <color name="app_present">#16A34A</color>
+    <color name="app_present_deep">#065F46</color>
+    <color name="app_on_present">#0B1F17</color>
+    <color name="app_present_container">#BBF7D0</color>
+    <color name="app_short">#B45309</color>
+    <color name="app_danger">#B91C1C</color>
 
     <!-- Widget Palette: Light Mode -->
     <color name="widget_background_color">#FFFFFF</color>
@@ -19,12 +23,6 @@
     <color name="widget_present">#247564</color>
     <color name="widget_on_present">#FFFFFF</color>
 
-    <!-- Legacy Color Tokens -->
-    <color name="purple_200">#FFBB86FC</color>
-    <color name="purple_500">#FF6200EE</color>
-    <color name="purple_700">#FF3700B3</color>
-    <color name="teal_200">#FF03DAC5</color>
-    <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
     <color name="white">#FFFFFFFF</color>
 </resources>

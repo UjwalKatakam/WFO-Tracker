@@ -43,6 +43,8 @@ import com.example.data.local.CheckInLog
 import com.example.data.local.LeaveHoliday
 import com.example.ui.components.ArrivedEarlierBottomSheet
 import com.example.ui.components.DashboardArrivalHistogram
+import com.example.ui.components.DashboardCalculations
+import com.example.ui.components.DashboardGreeting
 import com.example.ui.components.DashboardHeroQuota
 import com.example.ui.components.DashboardPunchControl
 import com.example.ui.components.DashboardThisWeek
@@ -61,7 +63,9 @@ import com.example.ui.components.WfoUndoBanner
 import com.example.ui.theme.AppTheme
 import com.example.ui.viewmodel.WfoUiState
 import com.example.ui.viewmodel.WfoViewModel
+import com.example.util.DateUtils
 import java.text.DateFormatSymbols
+import java.util.Calendar
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -88,7 +92,7 @@ fun DashboardScreen(
 
         AlertDialog(
             onDismissRequest = { viewModel.dismissArrivalPrompt() },
-            icon = { Icon(Icons.Default.LocationOn, contentDescription = null, tint = AppTheme.colors.present) },
+            icon = { Icon(Icons.Default.LocationOn, contentDescription = null, tint = AppTheme.colors.presentDeep) },
             title = {
                 Text(
                     text = "Arrived at office",
@@ -140,7 +144,7 @@ fun DashboardScreen(
                     onClick = { viewModel.dismissArrivalPrompt() }
                 )
             },
-            containerColor = AppTheme.colors.raised,
+            containerColor = AppTheme.colors.sheet,
             textContentColor = AppTheme.colors.ink,
             titleContentColor = AppTheme.colors.ink
         )
@@ -205,7 +209,7 @@ fun DashboardScreen(
                     onClick = { viewModel.dismissDeparturePrompt() }
                 )
             },
-            containerColor = AppTheme.colors.raised,
+            containerColor = AppTheme.colors.sheet,
             textContentColor = AppTheme.colors.ink,
             titleContentColor = AppTheme.colors.ink
         )
@@ -251,7 +255,7 @@ fun DashboardScreen(
                     onClick = { viewModel.dismissBatteryOptimizationNudge() }
                 )
             },
-            containerColor = AppTheme.colors.raised,
+            containerColor = AppTheme.colors.sheet,
             textContentColor = AppTheme.colors.ink,
             titleContentColor = AppTheme.colors.ink
         )
@@ -390,23 +394,63 @@ fun DashboardScreen(
                 )
             }
 
-            // 1. HERO QUOTA COMPONENT (Sitting directly on Ground without Surface container)
+            // 0. GREETING LINE
+            val nowCal = remember(uiState.selectedCalendarDateKey, uiState.logs.size) {
+                Calendar.getInstance()
+            }
+            val (greetingPrefix, firstName) = remember(uiState.settings.employeeName, nowCal.get(Calendar.HOUR_OF_DAY)) {
+                DashboardCalculations.greetingParts(
+                    employeeName = uiState.settings.employeeName,
+                    hourOfDay = nowCal.get(Calendar.HOUR_OF_DAY)
+                )
+            }
+            DashboardGreeting(
+                greetingPrefix = greetingPrefix,
+                firstName = firstName
+            )
+
+            // 1. HERO QUOTA RING COMPONENT
             val monthNames = DateFormatSymbols.getInstance(Locale.US).months
             val monthName = monthNames.getOrElse(uiState.dashboardNavMonth) { "This month" }
+            val monthKey = String.format(
+                Locale.US,
+                "%04d-%02d",
+                uiState.dashboardNavYear,
+                uiState.dashboardNavMonth + 1
+            )
 
-            val remainingDays = uiState.requiredDaysThisMonth - uiState.validDaysThisMonth
-            val paceSentence = when {
-                remainingDays <= 0 -> "Quota met"
-                else -> "$remainingDays more days needed, about 3 a week"
+            val paceMessage = remember(
+                monthName,
+                uiState.validDaysThisMonth,
+                uiState.requiredDaysThisMonth,
+                uiState.settings.targetDaysPerWeek,
+                uiState.dashboardNavYear,
+                uiState.dashboardNavMonth,
+                uiState.logs,
+                uiState.settings.minHours
+            ) {
+                DashboardCalculations.computeHeroMessage(
+                    monthName = monthName,
+                    validDays = uiState.validDaysThisMonth,
+                    requiredDays = uiState.requiredDaysThisMonth,
+                    targetDaysPerWeek = uiState.settings.targetDaysPerWeek,
+                    navYear = uiState.dashboardNavYear,
+                    navMonth = uiState.dashboardNavMonth,
+                    logs = uiState.logs,
+                    minHours = uiState.settings.minHours
+                )
             }
 
             DashboardHeroQuota(
                 monthName = monthName,
+                monthKey = monthKey,
+                lastCelebratedMonthKey = uiState.settings.lastCelebratedMonthKey,
                 validDaysThisMonth = uiState.validDaysThisMonth,
                 requiredDaysThisMonth = uiState.requiredDaysThisMonth,
-                underMinimumDays = 0, // Passed as 0 per requirement 2; underMinimum not in WfoUiState
-                minHours = uiState.settings.minHours,
-                paceSentence = paceSentence
+                paceMessage = paceMessage,
+                weeklyStreak = uiState.weeklyStreak,
+                onStreakClick = { viewModel.openStreakBreakdown(true) },
+                onMonthCelebrated = { celebratedKey -> viewModel.markMonthCelebrated(celebratedKey) }
             )
 
             HorizontalDivider(color = AppTheme.colors.rule, thickness = 1.dp)
@@ -432,43 +476,27 @@ fun DashboardScreen(
                 weekBreakdown = uiState.currentWeekBreakdown,
                 validDaysThisWeek = uiState.validDaysThisWeek,
                 targetDaysPerWeek = uiState.settings.targetDaysPerWeek,
-                todayDateKey = uiState.selectedCalendarDateKey
+                todayDateKey = DateUtils.todayDateStr()
             )
 
             HorizontalDivider(color = AppTheme.colors.rule, thickness = 1.dp)
 
-            // 4. STREAK AND EXCLUSIONS (Plain list rows on Ground, separated by Rule lines, no border box)
-            Column(modifier = Modifier.fillMaxWidth()) {
-                WfoListRow(
-                    title = "Weekly streak",
-                    subtitle = "${uiState.weeklyStreak} weeks",
-                    trailingContent = {
-                        Icon(
-                            imageVector = Icons.Default.ChevronRight,
-                            contentDescription = null,
-                            tint = AppTheme.colors.muted
-                        )
-                    },
-                    onClick = { viewModel.openStreakBreakdown(true) },
-                    showDivider = true
-                )
+            // 4. EXCLUSIONS ROW
+            WfoListRow(
+                title = "Exclusions",
+                subtitle = "${uiState.currentMonthLeaves.size} days",
+                trailingContent = {
+                    Icon(
+                        imageVector = Icons.Default.ChevronRight,
+                        contentDescription = null,
+                        tint = AppTheme.colors.muted
+                    )
+                },
+                onClick = { showLeavesDialog = true },
+                showDivider = false
+            )
 
-                WfoListRow(
-                    title = "Exclusions",
-                    subtitle = "${uiState.currentMonthLeaves.size} days",
-                    trailingContent = {
-                        Icon(
-                            imageVector = Icons.Default.ChevronRight,
-                            contentDescription = null,
-                            tint = AppTheme.colors.muted
-                        )
-                    },
-                    onClick = { showLeavesDialog = true },
-                    showDivider = false
-                )
-            }
-
-            // 5. INSIGHTS (Insight charts maintain single container)
+            // 5. INSIGHTS
             WfoSectionHeader(title = "Insights")
 
             DashboardArrivalHistogram(

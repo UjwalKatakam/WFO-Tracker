@@ -1,5 +1,10 @@
 package com.example.ui.components
 
+import android.animation.ValueAnimator
+import android.provider.Settings
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -13,6 +18,7 @@ import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,8 +26,11 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -31,6 +40,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -40,84 +50,340 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.AppTheme
 import com.example.ui.theme.CalendarCellShape
+import com.example.ui.theme.ChipShape
 import com.example.ui.theme.SurfaceGroupShape
 import com.example.ui.viewmodel.DayStreakDetail
 import com.example.util.DateUtils
+import com.example.util.HapticHelper
 import java.util.Calendar
 import java.util.Locale
+import kotlin.math.cos
+import kotlin.math.sin
+
+private val WeekTileShape = RoundedCornerShape(12.dp)
 
 // ============================================================================
-// 1. HERO QUOTA COMPONENT (Sitting directly on Ground without Surface container)
+// 0. GREETING LINE
 // ============================================================================
 
-/**
- * Month quota hero:
- * - Sits on Ground without a Surface container
- * - Month name heading (replaces "Monthly quota")
- * - Quota as "8 of 10 days" in 28 sp
- * - WfoQuotaBar with underMinimum = 0
- * - Plain sentence for pace / deficit
- * - Text line for under-minimum days only when count > 0 ("1 day under 6 hours")
- */
+@Composable
+fun DashboardGreeting(
+    greetingPrefix: String,
+    firstName: String?,
+    modifier: Modifier = Modifier
+) {
+    val mutedColor = AppTheme.colors.muted
+    val inkColor = AppTheme.colors.ink
+
+    Text(
+        text = buildAnnotatedString {
+            withStyle(SpanStyle(color = mutedColor)) {
+                append(greetingPrefix)
+            }
+            if (!firstName.isNullOrBlank()) {
+                withStyle(SpanStyle(color = inkColor)) {
+                    append(firstName)
+                }
+            }
+        },
+        style = MaterialTheme.typography.titleMedium,
+        modifier = modifier.fillMaxWidth()
+    )
+}
+
+// ============================================================================
+// 1. HERO QUOTA RING COMPONENT
+// ============================================================================
+
 @Composable
 fun DashboardHeroQuota(
     monthName: String,
+    monthKey: String,
+    lastCelebratedMonthKey: String,
     validDaysThisMonth: Int,
     requiredDaysThisMonth: Int,
-    underMinimumDays: Int,
-    minHours: Double,
-    paceSentence: String,
+    paceMessage: DashboardHeroMessage,
+    weeklyStreak: Int,
+    onStreakClick: () -> Unit,
+    onMonthCelebrated: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val reduceMotion = remember(context) {
+        try {
+            val scale = Settings.Global.getFloat(
+                context.contentResolver,
+                Settings.Global.ANIMATOR_DURATION_SCALE,
+                1f
+            )
+            scale == 0f || !ValueAnimator.areAnimatorsEnabled()
+        } catch (_: Exception) {
+            !ValueAnimator.areAnimatorsEnabled()
+        }
+    }
+
+    val targetProgress = if (requiredDaysThisMonth > 0) {
+        (validDaysThisMonth.toFloat() / requiredDaysThisMonth.toFloat()).coerceIn(0f, 1f)
+    } else {
+        1f
+    }
+
+    val celebrationSweep = remember { Animatable(targetProgress) }
+    val celebrationScale = remember { Animatable(1f) }
+    var isCelebrating by remember { mutableStateOf(false) }
+
+    LaunchedEffect(monthKey, validDaysThisMonth, requiredDaysThisMonth, lastCelebratedMonthKey) {
+        val shouldCelebrate = requiredDaysThisMonth > 0 &&
+            validDaysThisMonth >= requiredDaysThisMonth &&
+            monthKey != lastCelebratedMonthKey
+
+        if (shouldCelebrate) {
+            onMonthCelebrated(monthKey)
+            if (!reduceMotion) {
+                isCelebrating = true
+                val startFrac = ((validDaysThisMonth - 1).coerceAtLeast(0).toFloat() /
+                    requiredDaysThisMonth.toFloat()).coerceIn(0f, 1f)
+                celebrationSweep.snapTo(startFrac)
+                celebrationSweep.animateTo(
+                    targetValue = 1f,
+                    animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing)
+                )
+                HapticHelper.performMilestoneCelebration(context)
+                celebrationScale.animateTo(1.04f, animationSpec = tween(durationMillis = 150))
+                celebrationScale.animateTo(1f, animationSpec = tween(durationMillis = 220))
+                isCelebrating = false
+            } else {
+                celebrationSweep.snapTo(1f)
+                celebrationScale.snapTo(1f)
+            }
+        } else {
+            celebrationSweep.snapTo(targetProgress)
+            celebrationScale.snapTo(1f)
+        }
+    }
+
+    val displayedProgress = if (isCelebrating) celebrationSweep.value else targetProgress
+
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(10.dp)
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Text(
-            text = monthName,
-            style = MaterialTheme.typography.titleMedium,
-            color = AppTheme.colors.muted
-        )
+        if (requiredDaysThisMonth > 0) {
+            val presentColor = AppTheme.colors.present
+            val presentDeepColor = AppTheme.colors.presentDeep
+            val ruleColor = AppTheme.colors.rule
+            val inkColor = AppTheme.colors.ink
+            val mutedColor = AppTheme.colors.muted
+
+            BoxWithConstraints(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                val ringDiameter = minOf(maxWidth - 28.dp, 240.dp).coerceAtLeast(156.dp)
+                val canvasSize = ringDiameter + 24.dp
+                val density = LocalDensity.current
+                val fontScale = density.fontScale
+
+                Box(
+                    modifier = Modifier
+                        .size(canvasSize)
+                        .graphicsLayer {
+                            scaleX = celebrationScale.value
+                            scaleY = celebrationScale.value
+                        }
+                        .clearAndSetSemantics {
+                            contentDescription = "$validDaysThisMonth of $requiredDaysThisMonth days completed in $monthName"
+                        },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val strokePx = 14.dp.toPx()
+                        val ringSidePx = ringDiameter.toPx()
+                        val ringRadiusPx = ringSidePx / 2f
+                        val center = Offset(size.width / 2f, size.height / 2f)
+                        val arcTopLeft = Offset(
+                            x = center.x - ringRadiusPx + strokePx / 2f,
+                            y = center.y - ringRadiusPx + strokePx / 2f
+                        )
+                        val arcSize = Size(ringSidePx - strokePx, ringSidePx - strokePx)
+
+                        if (requiredDaysThisMonth <= 24) {
+                            val n = requiredDaysThisMonth
+                            val gapDegrees = 4f
+                            val stepDegrees = 360f / n
+                            val sweepDegrees = (stepDegrees - gapDegrees).coerceAtLeast(2f)
+
+                            for (index in 0 until n) {
+                                val startAngle = -90f + (index * stepDegrees) + (gapDegrees / 2f)
+                                val segmentThreshold = (index + 1).toFloat() / n.toFloat()
+                                val isFilled = if (isCelebrating) {
+                                    displayedProgress >= segmentThreshold - 0.0001f
+                                } else {
+                                    index < validDaysThisMonth
+                                }
+
+                                drawArc(
+                                    color = if (isFilled) presentColor else ruleColor,
+                                    startAngle = startAngle,
+                                    sweepAngle = sweepDegrees,
+                                    useCenter = false,
+                                    topLeft = arcTopLeft,
+                                    size = arcSize,
+                                    style = Stroke(width = strokePx, cap = StrokeCap.Butt)
+                                )
+                            }
+                        } else {
+                            drawArc(
+                                color = ruleColor,
+                                startAngle = -90f,
+                                sweepAngle = 360f,
+                                useCenter = false,
+                                topLeft = arcTopLeft,
+                                size = arcSize,
+                                style = Stroke(width = strokePx, cap = StrokeCap.Butt)
+                            )
+                            val filledSweep = 360f * displayedProgress
+                            if (filledSweep > 0f) {
+                                drawArc(
+                                    color = presentColor,
+                                    startAngle = -90f,
+                                    sweepAngle = filledSweep,
+                                    useCenter = false,
+                                    topLeft = arcTopLeft,
+                                    size = arcSize,
+                                    style = Stroke(width = strokePx, cap = StrokeCap.Butt)
+                                )
+                            }
+                        }
+
+                        // Milestone ticks outside the ring at 25%, 50%, 75%, and 100%
+                        val milestones = listOf(0.25f, 0.50f, 0.75f, 1.00f)
+                        val tickInnerRadius = ringRadiusPx + 4.dp.toPx()
+                        val tickOuterRadius = ringRadiusPx + 9.dp.toPx()
+                        val tickStroke = 2.5.dp.toPx()
+
+                        milestones.forEach { milestone ->
+                            val reached = displayedProgress >= milestone - 0.0001f
+                            val angleRad = Math.toRadians(-90.0 + (360.0 * milestone))
+                            val cosA = cos(angleRad).toFloat()
+                            val sinA = sin(angleRad).toFloat()
+                            drawLine(
+                                color = if (reached) presentDeepColor else ruleColor,
+                                start = Offset(
+                                    center.x + tickInnerRadius * cosA,
+                                    center.y + tickInnerRadius * sinA
+                                ),
+                                end = Offset(
+                                    center.x + tickOuterRadius * cosA,
+                                    center.y + tickOuterRadius * sinA
+                                ),
+                                strokeWidth = tickStroke,
+                                cap = StrokeCap.Round
+                            )
+                        }
+                    }
+
+                    // Center label inside the ring
+                    val innerTextWidth = (ringDiameter - 44.dp).coerceAtLeast(100.dp)
+                    val headlineText = "$validDaysThisMonth of $requiredDaysThisMonth"
+                    var fontSizeSp by remember(headlineText, innerTextWidth, fontScale) {
+                        val initial = if (fontScale > 1.05f) (48f / fontScale).coerceAtLeast(28f) else 56f
+                        mutableStateOf(initial.sp)
+                    }
+
+                    Column(
+                        modifier = Modifier.width(innerTextWidth),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                    ) {
+                        Text(
+                            text = headlineText,
+                            style = MaterialTheme.typography.displayLarge.copy(
+                                fontSize = fontSizeSp,
+                                lineHeight = (fontSizeSp.value * 1.12f).sp
+                            ),
+                            color = inkColor,
+                            maxLines = 1,
+                            softWrap = false,
+                            textAlign = TextAlign.Center,
+                            onTextLayout = { result ->
+                                if ((result.hasVisualOverflow || result.didOverflowWidth) && fontSizeSp.value > 20f) {
+                                    fontSizeSp = (fontSizeSp.value * 0.88f).sp
+                                }
+                            }
+                        )
+                        Text(
+                            text = "days in $monthName",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = mutedColor,
+                            textAlign = TextAlign.Center
+                        )
+                    }
+                }
+            }
+        }
 
         Text(
-            text = "$validDaysThisMonth of $requiredDaysThisMonth days",
-            style = MaterialTheme.typography.headlineLarge,
-            color = AppTheme.colors.ink
-        )
-
-        WfoQuotaBar(
-            totalRequired = requiredDaysThisMonth,
-            completed = validDaysThisMonth,
-            underMinimum = 0, // under-minimum days do not occupy quota segments
-            contentDescription = "$validDaysThisMonth of $requiredDaysThisMonth days completed",
-            modifier = Modifier.fillMaxWidth()
-        )
-
-        Text(
-            text = paceSentence,
+            text = paceMessage.text,
             style = MaterialTheme.typography.bodyMedium,
-            color = AppTheme.colors.muted
+            color = if (paceMessage.isPaceWarning) AppTheme.colors.short else AppTheme.colors.muted,
+            textAlign = TextAlign.Center,
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics { liveRegion = LiveRegionMode.Polite }
         )
 
-        if (underMinimumDays > 0) {
-            val hoursLabel = if (minHours % 1.0 == 0.0) "${minHours.toInt()}" else String.format(Locale.US, "%.1f", minHours)
-            val dayWord = if (underMinimumDays == 1) "day" else "days"
-            Text(
-                text = "$underMinimumDays $dayWord under $hoursLabel hours",
-                style = MaterialTheme.typography.bodySmall,
-                color = AppTheme.colors.short
-            )
+        // Streak pill chip on the hero
+        val streakText = "Streak: $weeklyStreak ${if (weeklyStreak == 1) "week" else "weeks"}"
+        val streakActive = weeklyStreak > 0
+        Surface(
+            onClick = onStreakClick,
+            shape = ChipShape,
+            color = if (streakActive) AppTheme.colors.presentContainer else AppTheme.colors.raised,
+            border = BorderStroke(
+                width = 1.dp,
+                color = if (streakActive) AppTheme.colors.presentDeep else AppTheme.colors.rule
+            ),
+            modifier = Modifier
+                .defaultMinSize(minHeight = 48.dp)
+                .semantics { role = Role.Button }
+        ) {
+            Box(
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    text = streakText,
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (streakActive) AppTheme.colors.presentDeep else AppTheme.colors.ink,
+                    fontWeight = FontWeight.Medium
+                )
+            }
         }
     }
 }
@@ -126,12 +392,6 @@ fun DashboardHeroQuota(
 // 2. PUNCH CONTROL (Sitting directly on Ground without Surface container)
 // ============================================================================
 
-/**
- * Punch control:
- * - Sits directly on Ground
- * - Idle: full-width "Punch in" button and "Arrived earlier?" text button.
- * - Active: 56 sp timer that shrinks to fit at 1.3x scale on one line, remaining time, and "Punch out" button.
- */
 @Composable
 fun DashboardPunchControl(
     isPunchedIn: Boolean,
@@ -147,7 +407,7 @@ fun DashboardPunchControl(
     Column(
         modifier = modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         if (!isPunchedIn) {
             WfoPrimaryButton(
@@ -158,7 +418,8 @@ fun DashboardPunchControl(
 
             WfoTextButton(
                 text = "Arrived earlier?",
-                onClick = onArrivedEarlierClick
+                onClick = onArrivedEarlierClick,
+                textColorOverride = AppTheme.colors.presentDeep
             )
         } else {
             val hours = elapsedSeconds / 3600
@@ -171,14 +432,12 @@ fun DashboardPunchControl(
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                // Timer stays on one line and shrinks to fit at font scale 1.3
                 BoxWithConstraints(
                     modifier = Modifier.fillMaxWidth(),
                     contentAlignment = Alignment.Center
                 ) {
                     val fontScale = LocalDensity.current.fontScale
                     val baseSp = if (maxWidth < 360.dp) 44f else 56f
-                    // If font scale is magnified (e.g. 1.3), initialize proportionately so it does not wrap/clip
                     var currentFontSize by remember(timerText, maxWidth, fontScale) {
                         val initial = if (fontScale > 1.05f) (baseSp / fontScale).coerceAtLeast(32f).sp else baseSp.sp
                         mutableStateOf(initial)
@@ -208,7 +467,7 @@ fun DashboardPunchControl(
                     Text(
                         text = "Daily target met",
                         style = MaterialTheme.typography.bodyMedium,
-                        color = AppTheme.colors.present,
+                        color = AppTheme.colors.presentDeep,
                         fontWeight = FontWeight.Medium
                     )
                 } else {
@@ -241,14 +500,9 @@ fun DashboardPunchControl(
 }
 
 // ============================================================================
-// 3. ARRIVED EARLIER BOTTOM SHEET (FlowRow chips with "Now", "5 min", etc.)
+// 3. ARRIVED EARLIER BOTTOM SHEET
 // ============================================================================
 
-/**
- * Bottom sheet for backdating arrival time with transit offsets or time picker.
- * Holds ephemeral selection in local remember state (discarded on dismiss)
- * and rejects picked clock times that fall in the future.
- */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ArrivedEarlierBottomSheet(
@@ -417,20 +671,9 @@ fun ArrivedEarlierBottomSheet(
 }
 
 // ============================================================================
-// 4. THIS WEEK STRIP (Sitting directly on Ground without Surface container)
+// 4. THIS WEEK STRIP (Sitting directly on Ground)
 // ============================================================================
 
-/**
- * Week strip:
- * - Sits on Ground without a Surface container
- * - Order is strictly Monday through Friday
- * - 2 dp ring on today
- * - Present = filled Present
- * - Leave = outlined with letter
- * - Past empty = outlined cell
- * - Future weekday = filled Rule tone
- * - Explicit TalkBack contentDescription on each marker ("Tuesday, present, 6h 11m")
- */
 @Composable
 fun DashboardThisWeek(
     weekBreakdown: List<DayStreakDetail>,
@@ -441,7 +684,7 @@ fun DashboardThisWeek(
 ) {
     Column(
         modifier = modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
+        verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -461,7 +704,6 @@ fun DashboardThisWeek(
             )
         }
 
-        // Five weekdays strictly Mon-Fri (first 5 elements of currentWeekBreakdown)
         val weekdays = weekBreakdown.take(5)
         val fullDayNames = listOf("Monday", "Tuesday", "Wednesday", "Thursday", "Friday")
 
@@ -474,23 +716,36 @@ fun DashboardThisWeek(
                 val isPresent = day.isValidWfo
                 val isShort = !day.isValidWfo && day.hours > 0.0
                 val isLeave = day.isLeave
-                val isFuture = day.isFutureOrRest && !isToday
 
                 val fullDayName = fullDayNames.getOrElse(index) { day.dayName }
-                val totalMinutes = (day.hours * 60).toInt()
-                val h = totalMinutes / 60
-                val m = totalMinutes % 60
-                val hoursFormatted = if (m > 0) "${h}h ${m}m" else "${h}h"
+                val dayNumber = day.dateKey.substringAfterLast("-").toIntOrNull()?.toString() ?: ""
 
                 val statusDescription = when {
-                    isPresent -> "present, $hoursFormatted"
-                    isShort -> "under minimum, $hoursFormatted"
+                    isPresent -> "present"
+                    isShort -> "under minimum"
                     isLeave -> "leave"
-                    isFuture -> "upcoming"
-                    else -> "absent"
+                    else -> "no entry"
+                }
+                val markerDescription = "$fullDayName, $statusDescription"
+
+                val tileBackground = when {
+                    isPresent -> AppTheme.colors.presentContainer
+                    isShort || isLeave -> Color.Transparent
+                    else -> AppTheme.colors.raised
                 }
 
-                val markerDescription = "$fullDayName, $statusDescription"
+                val tileBorder = when {
+                    isToday -> BorderStroke(2.dp, AppTheme.colors.presentDeep)
+                    isShort -> BorderStroke(1.dp, AppTheme.colors.short)
+                    isLeave -> BorderStroke(1.dp, AppTheme.colors.rule)
+                    else -> null
+                }
+
+                val dayNumberColor = when {
+                    isPresent -> AppTheme.colors.presentDeep
+                    isShort -> AppTheme.colors.short
+                    else -> AppTheme.colors.ink
+                }
 
                 Column(
                     modifier = Modifier.weight(1f),
@@ -500,48 +755,56 @@ fun DashboardThisWeek(
                     Text(
                         text = day.dayName,
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (isToday) AppTheme.colors.ink else AppTheme.colors.muted,
+                        color = if (isToday) AppTheme.colors.presentDeep else AppTheme.colors.muted,
                         fontWeight = if (isToday) FontWeight.SemiBold else FontWeight.Normal
                     )
 
-                    val todayRingModifier = if (isToday) {
-                        Modifier.border(2.dp, AppTheme.colors.ink, CalendarCellShape)
-                    } else {
-                        Modifier
-                    }
-
-                    Box(
+                    Surface(
+                        shape = WeekTileShape,
+                        color = tileBackground,
+                        border = tileBorder,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(36.dp)
-                            .then(todayRingModifier)
-                            .then(
-                                when {
-                                    isPresent -> Modifier
-                                        .clip(CalendarCellShape)
-                                        .background(AppTheme.colors.present)
-                                    isShort -> Modifier
-                                        .border(1.5.dp, AppTheme.colors.short, CalendarCellShape)
-                                    isLeave -> Modifier
-                                        .border(1.dp, AppTheme.colors.rule, CalendarCellShape)
-                                    isFuture -> Modifier
-                                        .clip(CalendarCellShape)
-                                        .background(AppTheme.colors.rule)
-                                    else -> Modifier // Past empty weekday: outlined cell
-                                        .border(1.dp, AppTheme.colors.rule, CalendarCellShape)
-                                }
-                            )
+                            .defaultMinSize(minHeight = 48.dp)
                             .semantics {
                                 this.contentDescription = markerDescription
-                            },
-                        contentAlignment = Alignment.Center
+                            }
                     ) {
-                        if (isLeave) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 6.dp, horizontal = 4.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.Center
+                        ) {
                             Text(
-                                text = "L",
-                                style = MaterialTheme.typography.labelSmall,
-                                color = AppTheme.colors.muted
+                                text = dayNumber,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = dayNumberColor,
+                                fontWeight = if (isToday || isPresent) FontWeight.SemiBold else FontWeight.Medium
                             )
+                            Spacer(modifier = Modifier.height(2.dp))
+                            when {
+                                isPresent -> Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = null,
+                                    tint = AppTheme.colors.presentDeep,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                isShort -> Icon(
+                                    imageVector = Icons.Default.Schedule,
+                                    contentDescription = null,
+                                    tint = AppTheme.colors.short,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                isLeave -> Icon(
+                                    imageVector = Icons.Default.Remove,
+                                    contentDescription = null,
+                                    tint = AppTheme.colors.muted,
+                                    modifier = Modifier.size(14.dp)
+                                )
+                                else -> Spacer(modifier = Modifier.height(14.dp))
+                            }
                         }
                     }
                 }
@@ -554,25 +817,19 @@ fun DashboardThisWeek(
 // 5. INSIGHTS CHARTS: HORIZONTAL HISTOGRAM & UNIFIED HOURS TREND
 // ============================================================================
 
-/**
- * Arrival Times Histogram:
- * - One horizontal row per bin
- * - Full label on the left (no maxLines truncation)
- * - Horizontal bar in the middle (Peak in Present, others in Muted at 35% alpha)
- * - Count on the right
- */
 @Composable
 fun DashboardArrivalHistogram(
     arrivalBins: List<DateUtils.ArrivalBin>,
     modifier: Modifier = Modifier
 ) {
+    val hasData = arrivalBins.any { it.count > 0 }
     val maxCount = arrivalBins.maxOfOrNull { it.count }?.coerceAtLeast(1) ?: 1
     val peakBin = arrivalBins.maxByOrNull { it.count }
 
     Surface(
         shape = SurfaceGroupShape,
         color = AppTheme.colors.raised,
-        border = BorderStroke(1.dp, AppTheme.colors.rule),
+        border = wfoCardBorder(),
         modifier = modifier.fillMaxWidth()
     ) {
         Column(
@@ -589,7 +846,7 @@ fun DashboardArrivalHistogram(
                     style = MaterialTheme.typography.titleSmall,
                     color = AppTheme.colors.ink
                 )
-                if (peakBin != null && peakBin.count > 0) {
+                if (hasData && peakBin != null && peakBin.count > 0) {
                     Text(
                         text = "Peak: ${peakBin.label}",
                         style = MaterialTheme.typography.bodySmall,
@@ -598,57 +855,62 @@ fun DashboardArrivalHistogram(
                 }
             }
 
-            Column(
-                modifier = Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                arrivalBins.forEach { bin ->
-                    val isPeak = bin.count == peakBin?.count && bin.count > 0
-                    val fraction = if (maxCount > 0) (bin.count.toFloat() / maxCount.toFloat()) else 0f
+            if (!hasData) {
+                WfoEmptyState(
+                    illustration = WfoIllustrationKind.OFFICE_BUILDING,
+                    body = "Arrival times appear after your first punch in."
+                )
+            } else {
+                Column(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    arrivalBins.forEach { bin ->
+                        val isPeak = bin.count == peakBin?.count && bin.count > 0
+                        val fraction = (bin.count.toFloat() / maxCount.toFloat()).coerceIn(0f, 1f)
 
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        // Full label on the left (no maxLines)
-                        Text(
-                            text = bin.label,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = AppTheme.colors.ink,
-                            modifier = Modifier.width(88.dp)
-                        )
-
-                        // Bar in the middle
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .height(12.dp)
-                                .clip(CalendarCellShape)
-                                .background(AppTheme.colors.rule)
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(4.dp)
                         ) {
-                            if (bin.count > 0) {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxWidth(fraction)
-                                        .fillMaxHeight()
-                                        .clip(CalendarCellShape)
-                                        .background(
-                                            if (isPeak) AppTheme.colors.present else AppTheme.colors.muted.copy(alpha = 0.35f)
-                                        )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = bin.label,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = AppTheme.colors.ink
+                                )
+                                Text(
+                                    text = "${bin.count}",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (isPeak) AppTheme.colors.presentDeep else AppTheme.colors.muted,
+                                    fontWeight = if (isPeak) FontWeight.SemiBold else FontWeight.Normal
                                 )
                             }
-                        }
 
-                        // Count on the right
-                        Text(
-                            text = "${bin.count}",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = if (isPeak) AppTheme.colors.present else AppTheme.colors.muted,
-                            modifier = Modifier
-                                .width(32.dp)
-                                .padding(start = 10.dp),
-                            textAlign = TextAlign.End
-                        )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(10.dp)
+                                    .clip(CalendarCellShape)
+                                    .background(AppTheme.colors.ground)
+                            ) {
+                                if (bin.count > 0) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth(fraction)
+                                            .fillMaxHeight()
+                                            .clip(CalendarCellShape)
+                                            .background(
+                                                if (isPeak) AppTheme.colors.present else AppTheme.colors.muted
+                                            )
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -656,18 +918,12 @@ fun DashboardArrivalHistogram(
     }
 }
 
-/**
- * Weekly Hours Trend:
- * - Bars and target line drawn in one coordinate space: bar height = hours / maxHours * plotHeight
- * - No coerceIn clamps on bar height
- * - Value and week labels outside the plot area (top and bottom rows)
- * - Target line drawn above the bars: 1.5 dp, AppTheme.colors.ink at 60% alpha
- */
 @Composable
 fun DashboardWeeklyHoursTrend(
     weeklyTrends: List<DateUtils.TrendPoint>,
     modifier: Modifier = Modifier
 ) {
+    val hasData = weeklyTrends.any { it.actualHours > 0.0 }
     val maxHours = weeklyTrends.maxOfOrNull { maxOf(it.actualHours, it.targetHours) }?.coerceAtLeast(1.0) ?: 24.0
     val targetThreshold = weeklyTrends.firstOrNull()?.targetHours ?: 24.0
     val plotHeight = 100.dp
@@ -675,7 +931,7 @@ fun DashboardWeeklyHoursTrend(
     Surface(
         shape = SurfaceGroupShape,
         color = AppTheme.colors.raised,
-        border = BorderStroke(1.dp, AppTheme.colors.rule),
+        border = wfoCardBorder(),
         modifier = modifier.fillMaxWidth()
     ) {
         Column(
@@ -692,90 +948,100 @@ fun DashboardWeeklyHoursTrend(
                     style = MaterialTheme.typography.titleSmall,
                     color = AppTheme.colors.ink
                 )
-                Text(
-                    text = String.format(Locale.US, "Target: %.0fh", targetThreshold),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = AppTheme.colors.muted
-                )
-            }
-
-            // Top row: Value labels outside the plot area
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                weeklyTrends.forEach { point ->
-                    val isMet = point.actualHours >= point.targetHours
+                if (hasData) {
                     Text(
-                        text = String.format(Locale.US, "%.1fh", point.actualHours),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (isMet) AppTheme.colors.present else AppTheme.colors.short,
-                        modifier = Modifier.weight(1f),
-                        textAlign = TextAlign.Center
+                        text = String.format(Locale.US, "Target %.0fh", targetThreshold),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = AppTheme.colors.muted
                     )
                 }
             }
 
-            // Middle: Plot area in one coordinate space
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(plotHeight)
-            ) {
-                // 1. Bars drawn in one coordinate space (bar height = hours / maxHours * plotHeight)
+            if (!hasData) {
+                WfoEmptyState(
+                    illustration = WfoIllustrationKind.BAR_CHART,
+                    body = "Weekly hours appear after your first punch out."
+                )
+            } else {
+                // Value labels row: only shown when hours > 0; zero weeks stay empty
                 Row(
-                    modifier = Modifier.fillMaxSize(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.Bottom
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
                 ) {
                     weeklyTrends.forEach { point ->
+                        val hasHours = point.actualHours > 0.0
                         val isMet = point.actualHours >= point.targetHours
-                        val fraction = (point.actualHours / maxHours).toFloat()
-
-                        Box(
-                            modifier = Modifier
-                                .weight(1f)
-                                .fillMaxHeight(),
-                            contentAlignment = Alignment.BottomCenter
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxWidth(0.5f)
-                                    .fillMaxHeight(fraction)
-                                    .clip(CalendarCellShape)
-                                    .background(if (isMet) AppTheme.colors.present else AppTheme.colors.short)
-                            )
-                        }
+                        Text(
+                            text = if (hasHours) String.format(Locale.US, "%.1fh", point.actualHours) else "",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = if (isMet) AppTheme.colors.presentDeep else AppTheme.colors.short,
+                            modifier = Modifier.weight(1f),
+                            textAlign = TextAlign.Center
+                        )
                     }
                 }
 
-                // 2. Target line drawn above the bars: 1.5 dp, AppTheme.colors.ink at 60% alpha
-                val targetLineColor = AppTheme.colors.ink.copy(alpha = 0.60f)
-                Canvas(modifier = Modifier.fillMaxSize()) {
-                    val yPos = size.height * (1f - (targetThreshold.toFloat() / maxHours.toFloat()))
-                    drawLine(
-                        color = targetLineColor,
-                        start = Offset(0f, yPos),
-                        end = Offset(size.width, yPos),
-                        strokeWidth = 1.5.dp.toPx(),
-                        pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f), 0f)
-                    )
-                }
-            }
+                // Plot area in one coordinate space
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(plotHeight)
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxSize(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.Bottom
+                    ) {
+                        weeklyTrends.forEach { point ->
+                            val isMet = point.actualHours >= point.targetHours
+                            val fraction = (point.actualHours / maxHours).toFloat().coerceIn(0f, 1f)
 
-            // Bottom row: Week labels outside the plot area
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                weeklyTrends.forEach { point ->
-                    Text(
-                        text = point.label,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = AppTheme.colors.muted,
-                        modifier = Modifier.weight(1f),
-                        textAlign = TextAlign.Center
-                    )
+                            Box(
+                                modifier = Modifier
+                                    .weight(1f)
+                                    .fillMaxHeight(),
+                                contentAlignment = Alignment.BottomCenter
+                            ) {
+                                if (point.actualHours > 0.0) {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth(0.5f)
+                                            .fillMaxHeight(fraction)
+                                            .clip(CalendarCellShape)
+                                            .background(if (isMet) AppTheme.colors.present else AppTheme.colors.short)
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    val targetLineColor = AppTheme.colors.muted.copy(alpha = 0.7f)
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val yPos = size.height * (1f - (targetThreshold.toFloat() / maxHours.toFloat()))
+                        drawLine(
+                            color = targetLineColor,
+                            start = Offset(0f, yPos),
+                            end = Offset(size.width, yPos),
+                            strokeWidth = 1.5.dp.toPx(),
+                            pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f), 0f)
+                        )
+                    }
+                }
+
+                // Bottom row: week labels
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    weeklyTrends.forEach { point ->
+                        Text(
+                            text = point.label,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = AppTheme.colors.muted,
+                            modifier = Modifier.weight(1f),
+                            textAlign = TextAlign.Center
+                        )
+                    }
                 }
             }
         }

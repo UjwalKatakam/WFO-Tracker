@@ -40,7 +40,8 @@ data class WfoSettings(
     val lastDeletedUndoJson: String? = null,
     val batteryOptNudgeDismissed: Boolean = false,
     val persistentUndoSummary: String? = null,
-    val tokenUnreadable: Boolean = false
+    val tokenUnreadable: Boolean = false,
+    val lastCelebratedMonthKey: String = ""
 )
 
 class WfoPreferences(
@@ -71,6 +72,7 @@ class WfoPreferences(
         val LAST_DELETED_UNDO = stringPreferencesKey("last_deleted_undo")
         val BATTERY_OPT_DISMISSED = booleanPreferencesKey("battery_opt_dismissed")
         val PERSISTENT_UNDO_SUMMARY = stringPreferencesKey("persistent_undo_summary")
+        val LAST_CELEBRATED_MONTH_KEY = stringPreferencesKey("last_celebrated_month_key")
     }
 
     init {
@@ -144,7 +146,8 @@ class WfoPreferences(
             lastDeletedUndoJson = prefs[Keys.LAST_DELETED_UNDO],
             batteryOptNudgeDismissed = prefs[Keys.BATTERY_OPT_DISMISSED] ?: false,
             persistentUndoSummary = prefs[Keys.PERSISTENT_UNDO_SUMMARY],
-            tokenUnreadable = tokenUnreadable
+            tokenUnreadable = tokenUnreadable,
+            lastCelebratedMonthKey = prefs[Keys.LAST_CELEBRATED_MONTH_KEY] ?: ""
         )
     }
 
@@ -226,6 +229,12 @@ class WfoPreferences(
             } else {
                 prefs[Keys.PERSISTENT_UNDO_SUMMARY] = summary
             }
+        }
+    }
+
+    suspend fun setLastCelebratedMonthKey(monthKey: String) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.LAST_CELEBRATED_MONTH_KEY] = monthKey
         }
     }
 }

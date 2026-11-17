@@ -312,6 +312,10 @@ class WfoRepository(
         preferences.setBatteryOptDismissed(dismissed)
     }
 
+    suspend fun setLastCelebratedMonthKey(monthKey: String) {
+        preferences.setLastCelebratedMonthKey(monthKey)
+    }
+
     // Cloud Backup & GitHub Gist Sync
     suspend fun pushToGist(): Result<String> = withContext(Dispatchers.IO) {
         try {

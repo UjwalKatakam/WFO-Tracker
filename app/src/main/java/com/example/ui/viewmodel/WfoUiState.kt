@@ -116,10 +116,15 @@ data class WfoUiState(
     val currentWeekBreakdown: List<DayStreakDetail>
         get() {
             val details = mutableListOf<DayStreakDetail>()
-            val now = Calendar.getInstance()
+            val todayStr = DateUtils.todayDateStr()
             val cal = Calendar.getInstance().apply {
-                firstDayOfWeek = Calendar.MONDAY
-                set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+                val dow = get(Calendar.DAY_OF_WEEK)
+                val daysSinceMonday = if (dow == Calendar.SUNDAY) 6 else dow - Calendar.MONDAY
+                add(Calendar.DAY_OF_MONTH, -daysSinceMonday)
+                set(Calendar.HOUR_OF_DAY, 0)
+                set(Calendar.MINUTE, 0)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
             }
             val dayNames = listOf("Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun")
 
@@ -133,7 +138,7 @@ data class WfoUiState(
                 )
                 val log = logs.find { it.date == dateStr }
                 val leave = leaves.find { it.date == dateStr }
-                val isFuture = cal.after(now) && !dateStr.equals(DateUtils.todayDateStr())
+                val isFuture = dateStr > todayStr
                 val isWeekend = (i >= 5)
 
                 details.add(

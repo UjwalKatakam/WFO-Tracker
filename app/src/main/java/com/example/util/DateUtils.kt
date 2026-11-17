@@ -61,15 +61,20 @@ object DateUtils {
         }
     }
 
-    fun getValidDaysThisWeek(logs: List<CheckInLog>, minHours: Double): Int {
-        val now = Calendar.getInstance()
-        val startOfWeek = Calendar.getInstance().apply {
-            set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
+    private fun mondayOfWeek(cal: Calendar): Calendar {
+        return (cal.clone() as Calendar).apply {
+            val dow = get(Calendar.DAY_OF_WEEK)
+            val daysSinceMonday = if (dow == Calendar.SUNDAY) 6 else dow - Calendar.MONDAY
+            add(Calendar.DAY_OF_MONTH, -daysSinceMonday)
             set(Calendar.HOUR_OF_DAY, 0)
             set(Calendar.MINUTE, 0)
             set(Calendar.SECOND, 0)
             set(Calendar.MILLISECOND, 0)
         }
+    }
+
+    fun getValidDaysThisWeek(logs: List<CheckInLog>, minHours: Double): Int {
+        val startOfWeek = mondayOfWeek(Calendar.getInstance())
         val endOfWeek = (startOfWeek.clone() as Calendar).apply {
             add(Calendar.DAY_OF_YEAR, 6)
             set(Calendar.HOUR_OF_DAY, 23)
@@ -89,14 +94,10 @@ object DateUtils {
         val cal = Calendar.getInstance()
 
         for (weekOffset in 0..52) {
-            val checkWeek = (cal.clone() as Calendar).apply {
+            val targetCal = (cal.clone() as Calendar).apply {
                 add(Calendar.WEEK_OF_YEAR, -weekOffset)
-                set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
-                set(Calendar.HOUR_OF_DAY, 0)
-                set(Calendar.MINUTE, 0)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
             }
+            val checkWeek = mondayOfWeek(targetCal)
             val checkWeekEnd = (checkWeek.clone() as Calendar).apply {
                 add(Calendar.DAY_OF_YEAR, 6)
                 set(Calendar.HOUR_OF_DAY, 23)
@@ -147,9 +148,8 @@ object DateUtils {
             val totalM = (decimal * 60).toInt().coerceIn(0, 1439)
             val h = totalM / 60
             val m = totalM % 60
-            val ampm = if (h >= 12) "PM" else "AM"
             val dispH = if (h % 12 == 0) 12 else h % 12
-            return String.format(Locale.US, "%d:%02d %s", dispH, m, ampm)
+            return String.format(Locale.US, "%d:%02d", dispH, m)
         }
 
         val rawBins = listOf(
@@ -163,9 +163,9 @@ object DateUtils {
 
         val bins = rawBins.mapIndexed { index, (min, max) ->
             val label = when (index) {
-                0 -> "< ${fmtTime(max)}"
-                rawBins.lastIndex -> "> ${fmtTime(min)}"
-                else -> "${fmtTime(min)}-${fmtTime(max)}"
+                0 -> "Before ${fmtTime(max)}"
+                rawBins.lastIndex -> "After ${fmtTime(min)}"
+                else -> "${fmtTime(min)} to ${fmtTime(max)}"
             }
 
             val count = logs.count { log ->
@@ -193,13 +193,10 @@ object DateUtils {
         val targetGoal = targetDaysPerWeek * minHours
 
         for (i in 5 downTo 0) {
-            val cal = Calendar.getInstance().apply {
+            val baseCal = Calendar.getInstance().apply {
                 add(Calendar.WEEK_OF_YEAR, -i)
-                set(Calendar.DAY_OF_WEEK, Calendar.MONDAY)
-                set(Calendar.HOUR_OF_DAY, 0)
-                set(Calendar.MINUTE, 0)
-                set(Calendar.SECOND, 0)
             }
+            val cal = mondayOfWeek(baseCal)
             val calEnd = (cal.clone() as Calendar).apply {
                 add(Calendar.DAY_OF_YEAR, 6)
                 set(Calendar.HOUR_OF_DAY, 23)

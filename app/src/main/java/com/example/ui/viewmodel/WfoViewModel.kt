@@ -257,6 +257,12 @@ class WfoViewModel @JvmOverloads constructor(
         _uiState.update { it.copy(showStreakBreakdownDialog = show) }
     }
 
+    fun markMonthCelebrated(monthKey: String) {
+        viewModelScope.launch {
+            repository.setLastCelebratedMonthKey(monthKey)
+        }
+    }
+
     // Pull to Refresh
     fun pullToRefresh(context: Context) {
         viewModelScope.launch {
@@ -435,11 +441,24 @@ class WfoViewModel @JvmOverloads constructor(
             PunchTimerService.stop(context)
             com.example.widget.WfoAppWidgetProvider.updateAllWidgets(context)
             if (log != null) {
+                val current = _uiState.value
+                val monthPrefix = log.date.take(7)
+                val updatedLogs = current.logs.filter { it.date != log.date } + log
+                val validThisMonth = updatedLogs.count {
+                    it.date.startsWith(monthPrefix) && it.isValidWFODay(current.settings.minHours)
+                }
+                val leavesThisMonth = current.leaves.count { leave ->
+                    if (!leave.date.startsWith(monthPrefix)) return@count false
+                    val c = Calendar.getInstance().apply { time = DateUtils.parseDate(leave.date) }
+                    val dow = c.get(Calendar.DAY_OF_WEEK)
+                    dow != Calendar.SATURDAY && dow != Calendar.SUNDAY
+                }
+                val requiredThisMonth = maxOf(0, current.settings.targetDaysPerMonth - leavesThisMonth)
                 _uiState.update {
                     it.copy(
                         undoAvailable = true,
                         undoMessage = "Session logged (${log.formattedDuration} ending at ${log.formattedOutTime}). Mistake?",
-                        snackbarMessage = "Punched out. ${log.formattedDuration} logged."
+                        snackbarMessage = "${log.formattedDuration} logged. $validThisMonth of $requiredThisMonth this month."
                     )
                 }
             }

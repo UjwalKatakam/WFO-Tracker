@@ -33,13 +33,17 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.NavigationBarItemDefaults
+import androidx.compose.material3.PlainTooltip
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarDuration
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -141,23 +145,39 @@ fun MainAppScaffold(
                         }
                     },
                     actions = {
-                        IconButton(
-                            onClick = { viewModel.pushToCloud() },
-                            enabled = !uiState.isSyncingCloud,
-                            modifier = Modifier.testTag("top_cloud_sync_button")
+                        TooltipBox(
+                            positionProvider = TooltipDefaults.rememberPlainTooltipPositionProvider(),
+                            tooltip = {
+                                PlainTooltip {
+                                    Text("Back up to Gist")
+                                }
+                            },
+                            state = rememberTooltipState()
                         ) {
-                            if (uiState.isSyncingCloud) {
-                                CircularProgressIndicator(
-                                    modifier = Modifier.size(18.dp),
-                                    strokeWidth = 2.dp,
-                                    color = AppTheme.colors.present
-                                )
-                            } else {
-                                Icon(
-                                    Icons.Default.CloudSync,
-                                    contentDescription = "Sync with Gist",
-                                    tint = AppTheme.colors.muted
-                                )
+                            IconButton(
+                                onClick = {
+                                    if (uiState.settings.gitToken.isBlank()) {
+                                        selectedDestinationIndex = NavigationDestination.SETTINGS.ordinal
+                                    } else {
+                                        viewModel.pushToCloud()
+                                    }
+                                },
+                                enabled = !uiState.isSyncingCloud,
+                                modifier = Modifier.testTag("top_cloud_sync_button")
+                            ) {
+                                if (uiState.isSyncingCloud) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(18.dp),
+                                        strokeWidth = 2.dp,
+                                        color = AppTheme.colors.presentDeep
+                                    )
+                                } else {
+                                    Icon(
+                                        Icons.Default.CloudSync,
+                                        contentDescription = "Back up to Gist",
+                                        tint = AppTheme.colors.muted
+                                    )
+                                }
                             }
                         }
                     },
@@ -213,11 +233,11 @@ fun MainAppScaffold(
                                 )
                             },
                             colors = NavigationBarItemDefaults.colors(
-                                selectedIconColor = AppTheme.colors.present,
+                                selectedIconColor = AppTheme.colors.presentDeep,
                                 unselectedIconColor = AppTheme.colors.muted,
-                                selectedTextColor = AppTheme.colors.present,
+                                selectedTextColor = AppTheme.colors.presentDeep,
                                 unselectedTextColor = AppTheme.colors.muted,
-                                indicatorColor = MaterialTheme.colorScheme.secondaryContainer
+                                indicatorColor = AppTheme.colors.presentContainer
                             ),
                             modifier = Modifier.testTag(dest.testTag)
                         )

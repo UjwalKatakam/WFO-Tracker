@@ -4,43 +4,56 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.graphics.Color
 
 // ============================================================================
-// WFO TRACKER DESIGN SYSTEM: QUIET UTILITY
+// WFO TRACKER DESIGN SYSTEM: GREEN TONAL LAYERING
 // ============================================================================
-// Color is used with strict purpose: presence (#5BB5A2) is the primary accent.
-// No gradients, no shadows. Surfaces are separated by tone and 1dp Rule lines.
+// Friendly, calm, rewarding. Depth comes only from tonal layering (card on
+// ground, sheet on card), never from shadows or gradients.
 
-// Dark Theme (Default)
-val DarkGround = Color(0xFF15171A)
-val DarkRaised = Color(0xFF1E2126)
-val DarkRule = Color(0xFF2D3138)
-val DarkInk = Color(0xFFECEDEF)
-val DarkMuted = Color(0xFF8B919A)
+// Dark Theme
+val DarkGround = Color(0xFF0B1F17)
+val DarkRaised = Color(0xFF12291F)
+val DarkSheet = Color(0xFF17342A)
+val DarkRule = Color(0xFF1F3A2D)
+val DarkInk = Color(0xFFE8F5EC)
+val DarkMuted = Color(0xFF9FB5A8)
 
-// Status Accents (Dark)
-val DarkPresent = Color(0xFF5BB5A2)  // The only accent: primary actions & office day met (7.2:1 on Ground)
-val DarkShort = Color(0xFFE0A458)    // Under minimum hours (7.9:1 on Ground)
-val DarkDanger = Color(0xFFE5655A)   // Destructive actions (4.7:1 on Ground)
+// Status & Brand Accents (Dark)
+val DarkPresent = Color(0xFF4ADE80)
+val DarkPresentDeep = Color(0xFF4ADE80)
+val DarkOnPresent = Color(0xFF0B1F17)
+val DarkPresentContainer = Color(0xFF1B4332)
+val DarkShort = Color(0xFFF59E0B)
+val DarkDanger = Color(0xFFF87171)
 
 // Light Theme
-val LightGround = Color(0xFFF5F6F8)
-val LightRaised = Color(0xFFFFFFFF)
-val LightRule = Color(0xFFDFE2E6)
-val LightInk = Color(0xFF15171A)
-val LightMuted = Color(0xFF5E6570)   // 5.2:1 contrast on LightGround
+val LightGround = Color(0xFFF0FDF4)
+val LightRaised = Color(0xFFDCFCE7)
+val LightSheet = Color(0xFFFFFFFF)
+val LightRule = Color(0xFFBBE5C8)
+val LightInk = Color(0xFF0B1F17)
+val LightMuted = Color(0xFF5B7266)
 
-// Status Accents (Light - tuned to ensure >= 4.5:1 contrast on LightRaised & LightGround)
-val LightPresent = Color(0xFF247564) // 5.6:1 on LightRaised
-val LightShort = Color(0xFF9E5D0A)   // 5.1:1 on LightRaised
-val LightDanger = Color(0xFFC53328)  // 5.3:1 on LightRaised
+// Status & Brand Accents (Light)
+// LightPresent is for fills only (paired with LightOnPresent); LightPresentDeep is for green text, links, and icons.
+val LightPresent = Color(0xFF16A34A)
+val LightPresentDeep = Color(0xFF065F46)
+val LightOnPresent = Color(0xFF0B1F17)
+val LightPresentContainer = Color(0xFFBBF7D0)
+val LightShort = Color(0xFFB45309)
+val LightDanger = Color(0xFFB91C1C)
 
 @Immutable
 data class AppColors(
     val ground: Color,
     val raised: Color,
+    val sheet: Color,
     val rule: Color,
     val ink: Color,
     val muted: Color,
     val present: Color,
+    val presentDeep: Color,
+    val onPresent: Color,
+    val presentContainer: Color,
     val short: Color,
     val danger: Color,
     val isDark: Boolean

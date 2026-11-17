@@ -1,6 +1,7 @@
 package com.example.ui.components
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
@@ -41,7 +43,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
@@ -51,6 +59,7 @@ import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.example.ui.theme.AppTheme
 import com.example.ui.theme.ButtonShape
@@ -58,6 +67,10 @@ import com.example.ui.theme.CalendarCellShape
 import com.example.ui.theme.ChipShape
 import com.example.ui.theme.SheetShape
 import com.example.ui.theme.SurfaceGroupShape
+
+@Composable
+fun wfoCardBorder(): BorderStroke? =
+    if (AppTheme.colors.isDark) null else BorderStroke(1.dp, AppTheme.colors.rule)
 
 // ============================================================================
 // 1. BUTTON SET: Primary, Tonal, Text
@@ -77,7 +90,11 @@ fun WfoPrimaryButton(
     isDanger: Boolean = false
 ) {
     val containerColor = if (isDanger) AppTheme.colors.danger else AppTheme.colors.present
-    val contentColor = if (AppTheme.colors.isDark) AppTheme.colors.ground else AppTheme.colors.raised
+    val contentColor = if (isDanger) {
+        if (AppTheme.colors.isDark) AppTheme.colors.ground else AppTheme.colors.sheet
+    } else {
+        AppTheme.colors.onPresent
+    }
 
     Button(
         onClick = onClick,
@@ -163,11 +180,13 @@ fun WfoTextButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     isDanger: Boolean = false,
-    icon: ImageVector? = null
+    icon: ImageVector? = null,
+    textColorOverride: Color? = null
 ) {
     val textColor = when {
         !enabled -> AppTheme.colors.muted
         isDanger -> AppTheme.colors.danger
+        textColorOverride != null -> textColorOverride
         else -> AppTheme.colors.ink
     }
 
@@ -219,17 +238,17 @@ fun WfoChip(
 ) {
     val backgroundColor = when {
         !enabled -> AppTheme.colors.raised.copy(alpha = 0.5f)
-        selected -> AppTheme.colors.present.copy(alpha = if (AppTheme.colors.isDark) 0.16f else 0.12f)
+        selected -> AppTheme.colors.presentContainer
         else -> AppTheme.colors.raised
     }
     val borderColor = when {
         !enabled -> AppTheme.colors.rule.copy(alpha = 0.5f)
-        selected -> AppTheme.colors.present
+        selected -> AppTheme.colors.presentDeep
         else -> AppTheme.colors.rule
     }
     val textColor = when {
         !enabled -> AppTheme.colors.muted.copy(alpha = 0.5f)
-        selected -> AppTheme.colors.present
+        selected -> AppTheme.colors.presentDeep
         else -> AppTheme.colors.ink
     }
 
@@ -360,7 +379,7 @@ fun WfoSectionHeader(
 ) {
     Text(
         text = title,
-        style = MaterialTheme.typography.labelLarge,
+        style = MaterialTheme.typography.labelMedium,
         color = AppTheme.colors.muted,
         fontWeight = FontWeight.Medium,
         modifier = modifier
@@ -428,10 +447,10 @@ fun WfoSwitchRow(
                 onCheckedChange = null,
                 enabled = enabled,
                 colors = SwitchDefaults.colors(
-                    checkedThumbColor = if (AppTheme.colors.isDark) AppTheme.colors.ground else AppTheme.colors.raised,
+                    checkedThumbColor = AppTheme.colors.onPresent,
                     checkedTrackColor = AppTheme.colors.present,
                     uncheckedThumbColor = AppTheme.colors.muted,
-                    uncheckedTrackColor = AppTheme.colors.raised,
+                    uncheckedTrackColor = AppTheme.colors.sheet,
                     uncheckedBorderColor = AppTheme.colors.rule
                 )
             )
@@ -467,7 +486,7 @@ fun WfoBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState = sheetState,
         shape = SheetShape,
-        containerColor = AppTheme.colors.raised,
+        containerColor = AppTheme.colors.sheet,
         contentColor = AppTheme.colors.ink,
         dragHandle = {
             Box(
@@ -600,7 +619,7 @@ fun WfoUndoBanner(
     Surface(
         shape = SurfaceGroupShape,
         color = AppTheme.colors.raised,
-        border = BorderStroke(1.dp, AppTheme.colors.rule),
+        border = wfoCardBorder(),
         modifier = modifier
             .fillMaxWidth()
             .padding(horizontal = 16.dp, vertical = 6.dp)
@@ -634,13 +653,13 @@ fun WfoUndoBanner(
                     modifier = Modifier.defaultMinSize(minHeight = 48.dp),
                     shape = ButtonShape,
                     colors = ButtonDefaults.textButtonColors(
-                        contentColor = AppTheme.colors.present
+                        contentColor = AppTheme.colors.presentDeep
                     )
                 ) {
                     Text(
                         text = "Undo",
                         style = MaterialTheme.typography.labelLarge,
-                        color = AppTheme.colors.present,
+                        color = AppTheme.colors.presentDeep,
                         fontWeight = FontWeight.SemiBold
                     )
                 }
@@ -658,5 +677,204 @@ fun WfoUndoBanner(
                 }
             }
         }
+    }
+}
+
+// ============================================================================
+// 9. ILLUSTRATIONS & EMPTY STATES
+// ============================================================================
+
+enum class WfoIllustrationKind {
+    OFFICE_BUILDING,
+    CALENDAR,
+    BAR_CHART
+}
+
+/**
+ * Clean decorative Canvas line illustration (maximum 96.dp, 2.dp strokes in PresentDeep and Rule).
+ */
+@Composable
+fun WfoIllustration(
+    kind: WfoIllustrationKind,
+    modifier: Modifier = Modifier
+) {
+    val accentColor = AppTheme.colors.presentDeep
+    val mutedLineColor = AppTheme.colors.rule
+
+    Canvas(
+        modifier = modifier
+            .sizeIn(maxWidth = 96.dp, maxHeight = 96.dp)
+            .size(80.dp)
+    ) {
+        val strokePx = 2.dp.toPx()
+        val w = size.width
+        val h = size.height
+
+        when (kind) {
+            WfoIllustrationKind.OFFICE_BUILDING -> {
+                // Ground line
+                drawLine(
+                    color = mutedLineColor,
+                    start = Offset(w * 0.1f, h * 0.88f),
+                    end = Offset(w * 0.9f, h * 0.88f),
+                    strokeWidth = strokePx,
+                    cap = StrokeCap.Round
+                )
+                // Main tower
+                drawRoundRect(
+                    color = accentColor,
+                    topLeft = Offset(w * 0.24f, h * 0.16f),
+                    size = Size(w * 0.38f, h * 0.72f),
+                    cornerRadius = CornerRadius(4.dp.toPx(), 4.dp.toPx()),
+                    style = Stroke(width = strokePx)
+                )
+                // Side wing
+                drawRoundRect(
+                    color = mutedLineColor,
+                    topLeft = Offset(w * 0.62f, h * 0.42f),
+                    size = Size(w * 0.20f, h * 0.46f),
+                    cornerRadius = CornerRadius(3.dp.toPx(), 3.dp.toPx()),
+                    style = Stroke(width = strokePx)
+                )
+                // Window rows in main tower
+                for (row in 0..2) {
+                    val wy = h * (0.28f + row * 0.14f)
+                    drawLine(
+                        color = mutedLineColor,
+                        start = Offset(w * 0.33f, wy),
+                        end = Offset(w * 0.39f, wy),
+                        strokeWidth = strokePx,
+                        cap = StrokeCap.Round
+                    )
+                    drawLine(
+                        color = mutedLineColor,
+                        start = Offset(w * 0.47f, wy),
+                        end = Offset(w * 0.53f, wy),
+                        strokeWidth = strokePx,
+                        cap = StrokeCap.Round
+                    )
+                }
+                // Entrance door
+                drawRoundRect(
+                    color = accentColor,
+                    topLeft = Offset(w * 0.38f, h * 0.70f),
+                    size = Size(w * 0.10f, h * 0.18f),
+                    cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx()),
+                    style = Stroke(width = strokePx)
+                )
+            }
+
+            WfoIllustrationKind.CALENDAR -> {
+                // Outer frame
+                drawRoundRect(
+                    color = accentColor,
+                    topLeft = Offset(w * 0.16f, h * 0.22f),
+                    size = Size(w * 0.68f, h * 0.64f),
+                    cornerRadius = CornerRadius(8.dp.toPx(), 8.dp.toPx()),
+                    style = Stroke(width = strokePx)
+                )
+                // Ring pins at top
+                drawLine(
+                    color = accentColor,
+                    start = Offset(w * 0.34f, h * 0.14f),
+                    end = Offset(w * 0.34f, h * 0.28f),
+                    strokeWidth = strokePx,
+                    cap = StrokeCap.Round
+                )
+                drawLine(
+                    color = accentColor,
+                    start = Offset(w * 0.66f, h * 0.14f),
+                    end = Offset(w * 0.66f, h * 0.28f),
+                    strokeWidth = strokePx,
+                    cap = StrokeCap.Round
+                )
+                // Header divider
+                drawLine(
+                    color = mutedLineColor,
+                    start = Offset(w * 0.16f, h * 0.38f),
+                    end = Offset(w * 0.84f, h * 0.38f),
+                    strokeWidth = strokePx
+                )
+                // 3x2 day dots
+                for (r in 0..1) {
+                    for (c in 0..2) {
+                        val cx = w * (0.31f + c * 0.19f)
+                        val cy = h * (0.52f + r * 0.18f)
+                        val isHighlight = (r == 0 && c == 1)
+                        drawCircle(
+                            color = if (isHighlight) accentColor else mutedLineColor,
+                            radius = 3.dp.toPx(),
+                            center = Offset(cx, cy),
+                            style = Stroke(width = strokePx)
+                        )
+                    }
+                }
+            }
+
+            WfoIllustrationKind.BAR_CHART -> {
+                // Baseline
+                drawLine(
+                    color = mutedLineColor,
+                    start = Offset(w * 0.14f, h * 0.82f),
+                    end = Offset(w * 0.86f, h * 0.82f),
+                    strokeWidth = strokePx,
+                    cap = StrokeCap.Round
+                )
+                // Dashed target line
+                drawLine(
+                    color = mutedLineColor,
+                    start = Offset(w * 0.14f, h * 0.36f),
+                    end = Offset(w * 0.86f, h * 0.36f),
+                    strokeWidth = strokePx,
+                    pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f), 0f)
+                )
+                // 4 vertical bars
+                val barHeights = listOf(0.28f, 0.44f, 0.56f, 0.38f)
+                barHeights.forEachIndexed { idx, heightFrac ->
+                    val bx = w * (0.22f + idx * 0.16f)
+                    val bw = w * 0.10f
+                    val bh = h * heightFrac
+                    drawRoundRect(
+                        color = if (idx == 2) accentColor else mutedLineColor,
+                        topLeft = Offset(bx, h * 0.82f - bh),
+                        size = Size(bw, bh),
+                        cornerRadius = CornerRadius(3.dp.toPx(), 3.dp.toPx()),
+                        style = Stroke(width = strokePx)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun WfoEmptyState(
+    illustration: WfoIllustrationKind,
+    body: String,
+    modifier: Modifier = Modifier,
+    title: String? = null
+) {
+    Column(
+        modifier = modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        WfoIllustration(kind = illustration)
+        if (!title.isNullOrBlank()) {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                color = AppTheme.colors.ink,
+                textAlign = TextAlign.Center
+            )
+        }
+        Text(
+            text = body,
+            style = MaterialTheme.typography.bodyMedium,
+            color = AppTheme.colors.muted,
+            textAlign = TextAlign.Center
+        )
     }
 }
