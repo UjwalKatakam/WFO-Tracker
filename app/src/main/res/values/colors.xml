@@ -13,6 +13,7 @@
     <color name="app_present_container">#BBF7D0</color>
     <color name="app_short">#B45309</color>
     <color name="app_danger">#B91C1C</color>
+    <color name="app_reward">#D97706</color>
 
     <!-- Widget Palette: Light Mode -->
     <color name="widget_background_color">#FFFFFF</color>

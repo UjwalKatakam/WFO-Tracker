@@ -24,6 +24,7 @@ val DarkOnPresent = Color(0xFF0B1F17)
 val DarkPresentContainer = Color(0xFF1B4332)
 val DarkShort = Color(0xFFF59E0B)
 val DarkDanger = Color(0xFFF87171)
+val DarkReward = Color(0xFFFBBF24)
 
 // Light Theme
 val LightGround = Color(0xFFF0FDF4)
@@ -41,6 +42,7 @@ val LightOnPresent = Color(0xFF0B1F17)
 val LightPresentContainer = Color(0xFFBBF7D0)
 val LightShort = Color(0xFFB45309)
 val LightDanger = Color(0xFFB91C1C)
+val LightReward = Color(0xFFD97706)
 
 @Immutable
 data class AppColors(
@@ -56,5 +58,6 @@ data class AppColors(
     val presentContainer: Color,
     val short: Color,
     val danger: Color,
+    val reward: Color,
     val isDark: Boolean
 )

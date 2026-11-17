@@ -4,11 +4,11 @@ import android.animation.ValueAnimator
 import android.provider.Settings
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.FastOutSlowInEasing
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -26,8 +26,12 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Login
+import androidx.compose.material.icons.automirrored.filled.Logout
+import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Remove
@@ -45,16 +49,20 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -65,11 +73,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.theme.AppTheme
@@ -81,48 +87,279 @@ import com.example.util.DateUtils
 import com.example.util.HapticHelper
 import java.util.Calendar
 import java.util.Locale
-import kotlin.math.cos
-import kotlin.math.sin
 
 private val WeekTileShape = RoundedCornerShape(12.dp)
 
 // ============================================================================
-// 0. GREETING LINE
+// 0. GREETING ROW WITH DECORATIVE SKYLINE
 // ============================================================================
 
 @Composable
 fun DashboardGreeting(
-    greetingPrefix: String,
+    greetingLine: String,
     firstName: String?,
+    timeOfDay: GreetingTimeOfDay,
     modifier: Modifier = Modifier
 ) {
-    val mutedColor = AppTheme.colors.muted
-    val inkColor = AppTheme.colors.ink
+    val isLargeFont = LocalDensity.current.fontScale >= 1.3f
+    val skylineWidth = if (isLargeFont) 96.dp else 128.dp
+    val skylineHeight = if (isLargeFont) 66.dp else 88.dp
 
-    Text(
-        text = buildAnnotatedString {
-            withStyle(SpanStyle(color = mutedColor)) {
-                append(greetingPrefix)
-            }
+    Row(
+        modifier = modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = greetingLine,
+                style = MaterialTheme.typography.titleMedium,
+                color = AppTheme.colors.muted
+            )
             if (!firstName.isNullOrBlank()) {
-                withStyle(SpanStyle(color = inkColor)) {
-                    append(firstName)
-                }
+                Text(
+                    text = firstName,
+                    style = MaterialTheme.typography.headlineLarge,
+                    color = AppTheme.colors.ink
+                )
             }
-        },
-        style = MaterialTheme.typography.titleMedium,
-        modifier = modifier.fillMaxWidth()
+        }
+
+        SkylineIllustration(
+            timeOfDay = timeOfDay,
+            modifier = Modifier.size(width = skylineWidth, height = skylineHeight)
+        )
+    }
+}
+
+@Composable
+private fun SkylineIllustration(
+    timeOfDay: GreetingTimeOfDay,
+    modifier: Modifier = Modifier
+) {
+    val groundColor = AppTheme.colors.ground
+    val ruleColor = AppTheme.colors.rule
+    val containerColor = AppTheme.colors.presentContainer
+    val presentColor = AppTheme.colors.present
+    val deepColor = AppTheme.colors.presentDeep
+    val rewardColor = AppTheme.colors.reward
+
+    Canvas(modifier = modifier) {
+        val w = size.width
+        val h = size.height
+
+        // Sky element + cloud (morning: low sun; afternoon: high sun; evening: crescent moon + stars)
+        when (timeOfDay) {
+            GreetingTimeOfDay.MORNING -> {
+                // Low sun
+                drawCircle(
+                    color = rewardColor,
+                    radius = h * 0.11f,
+                    center = Offset(w * 0.20f, h * 0.44f)
+                )
+                // Flat cloud
+                drawFlatCloud(
+                    color = containerColor,
+                    left = w * 0.40f,
+                    top = h * 0.15f,
+                    width = w * 0.34f,
+                    height = h * 0.15f
+                )
+            }
+
+            GreetingTimeOfDay.AFTERNOON -> {
+                // High sun
+                drawCircle(
+                    color = rewardColor,
+                    radius = h * 0.11f,
+                    center = Offset(w * 0.22f, h * 0.19f)
+                )
+                // Flat cloud
+                drawFlatCloud(
+                    color = containerColor,
+                    left = w * 0.48f,
+                    top = h * 0.18f,
+                    width = w * 0.32f,
+                    height = h * 0.14f
+                )
+            }
+
+            GreetingTimeOfDay.EVENING -> {
+                // Crescent moon (flat solid shape via ground cutout)
+                val moonCenter = Offset(w * 0.22f, h * 0.23f)
+                val moonRadius = h * 0.105f
+                drawCircle(
+                    color = rewardColor,
+                    radius = moonRadius,
+                    center = moonCenter
+                )
+                drawCircle(
+                    color = groundColor,
+                    radius = moonRadius * 0.85f,
+                    center = Offset(moonCenter.x + moonRadius * 0.45f, moonCenter.y - moonRadius * 0.25f)
+                )
+                // Three small stars
+                drawCircle(color = rewardColor, radius = 1.8.dp.toPx(), center = Offset(w * 0.43f, h * 0.15f))
+                drawCircle(color = rewardColor, radius = 1.5.dp.toPx(), center = Offset(w * 0.56f, h * 0.25f))
+                drawCircle(color = rewardColor, radius = 1.8.dp.toPx(), center = Offset(w * 0.86f, h * 0.13f))
+            }
+        }
+
+        // Background smaller building on the left (rule)
+        drawRoundRect(
+            color = ruleColor,
+            topLeft = Offset(w * 0.08f, h * 0.55f),
+            size = Size(w * 0.20f, h * 0.41f),
+            cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx())
+        )
+
+        // Tall office building in the middle-right (presentDeep)
+        drawRoundRect(
+            color = deepColor,
+            topLeft = Offset(w * 0.50f, h * 0.30f),
+            size = Size(w * 0.26f, h * 0.66f),
+            cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx())
+        )
+
+        // Building with pitched roof edge on the left-center (present)
+        val pitchedLeft = w * 0.25f
+        val pitchedRight = w * 0.54f
+        val pitchedBaseY = h * 0.96f
+        val pitchedPath = Path().apply {
+            moveTo(pitchedLeft, pitchedBaseY)
+            lineTo(pitchedLeft, h * 0.46f)
+            lineTo(pitchedRight, h * 0.36f)
+            lineTo(pitchedRight, pitchedBaseY)
+            close()
+        }
+        drawPath(path = pitchedPath, color = presentColor)
+
+        // Rightmost shorter wing (containerColor)
+        drawRoundRect(
+            color = containerColor,
+            topLeft = Offset(w * 0.74f, h * 0.52f),
+            size = Size(w * 0.19f, h * 0.44f),
+            cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx())
+        )
+
+        // Simple window grids (flat solid shapes)
+        val winW = w * 0.045f
+        val winH = h * 0.065f
+
+        // Windows on pitched building (2x3)
+        for (row in 0..2) {
+            for (col in 0..1) {
+                val wx = w * (0.31f + col * 0.10f)
+                val wy = h * (0.54f + row * 0.12f)
+                val isLit = timeOfDay == GreetingTimeOfDay.EVENING && ((row == 0 && col == 1) || (row == 2 && col == 0))
+                drawRect(
+                    color = if (isLit) rewardColor else groundColor,
+                    topLeft = Offset(wx, wy),
+                    size = Size(winW, winH)
+                )
+            }
+        }
+
+        // Windows on tall building (2x4)
+        for (row in 0..3) {
+            for (col in 0..1) {
+                val wx = w * (0.565f + col * 0.09f)
+                val wy = h * (0.38f + row * 0.12f)
+                val isLit = timeOfDay == GreetingTimeOfDay.EVENING && ((row == 1 && col == 0) || (row == 2 && col == 1))
+                drawRect(
+                    color = if (isLit) rewardColor else containerColor,
+                    topLeft = Offset(wx, wy),
+                    size = Size(winW, winH)
+                )
+            }
+        }
+
+        // Windows on right wing (1x2)
+        for (row in 0..1) {
+            val isLit = timeOfDay == GreetingTimeOfDay.EVENING && row == 0
+            drawRect(
+                color = if (isLit) rewardColor else deepColor,
+                topLeft = Offset(w * 0.81f, h * (0.62f + row * 0.13f)),
+                size = Size(winW, winH)
+            )
+        }
+
+        // Flat ground baseline strip
+        drawRoundRect(
+            color = ruleColor,
+            topLeft = Offset(w * 0.03f, h * 0.94f),
+            size = Size(w * 0.94f, h * 0.04f),
+            cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx())
+        )
+    }
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawFlatCloud(
+    color: Color,
+    left: Float,
+    top: Float,
+    width: Float,
+    height: Float
+) {
+    drawRoundRect(
+        color = color,
+        topLeft = Offset(left, top + height * 0.35f),
+        size = Size(width, height * 0.65f),
+        cornerRadius = CornerRadius(height * 0.35f, height * 0.35f)
+    )
+    drawCircle(
+        color = color,
+        radius = height * 0.42f,
+        center = Offset(left + width * 0.38f, top + height * 0.42f)
+    )
+    drawCircle(
+        color = color,
+        radius = height * 0.32f,
+        center = Offset(left + width * 0.66f, top + height * 0.50f)
     )
 }
 
 // ============================================================================
-// 1. HERO QUOTA RING COMPONENT
+// 1. HERO QUOTA CARD COMPONENT
 // ============================================================================
+
+private data class ConfettiSpec(
+    val startX: Float,
+    val startY: Float,
+    val speedY: Float,
+    val driftX: Float,
+    val sizeDp: Float,
+    val baseRotation: Float,
+    val spinDeg: Float,
+    val isCircle: Boolean,
+    val colorSlot: Int
+)
+
+private val HERO_CONFETTI_SPECS = listOf(
+    ConfettiSpec(0.10f, 0.14f, 0.36f, -0.05f, 6f, 15f, 180f, false, 0),
+    ConfettiSpec(0.18f, 0.08f, 0.42f, 0.04f, 5f, 0f, 0f, true, 2),
+    ConfettiSpec(0.25f, 0.18f, 0.34f, -0.04f, 7f, 45f, -200f, false, 1),
+    ConfettiSpec(0.32f, 0.10f, 0.44f, 0.06f, 5f, 0f, 0f, true, 3),
+    ConfettiSpec(0.40f, 0.16f, 0.38f, -0.03f, 6f, 25f, 150f, false, 2),
+    ConfettiSpec(0.48f, 0.06f, 0.46f, 0.03f, 6f, 60f, -170f, false, 0),
+    ConfettiSpec(0.55f, 0.12f, 0.40f, 0.05f, 5f, 0f, 0f, true, 1),
+    ConfettiSpec(0.62f, 0.09f, 0.43f, -0.04f, 7f, 30f, 210f, false, 2),
+    ConfettiSpec(0.70f, 0.17f, 0.35f, 0.06f, 5f, 0f, 0f, true, 0),
+    ConfettiSpec(0.76f, 0.11f, 0.45f, -0.05f, 6f, 50f, -160f, false, 3),
+    ConfettiSpec(0.83f, 0.15f, 0.37f, 0.04f, 6f, 10f, 190f, false, 1),
+    ConfettiSpec(0.89f, 0.08f, 0.41f, -0.03f, 5f, 0f, 0f, true, 2),
+    ConfettiSpec(0.22f, 0.24f, 0.39f, 0.05f, 5f, 35f, 140f, false, 3),
+    ConfettiSpec(0.66f, 0.22f, 0.40f, -0.06f, 6f, 20f, -180f, false, 0)
+)
 
 @Composable
 fun DashboardHeroQuota(
     monthName: String,
     monthKey: String,
+    isCurrentCalendarMonth: Boolean,
     lastCelebratedMonthKey: String,
     validDaysThisMonth: Int,
     requiredDaysThisMonth: Int,
@@ -133,6 +370,9 @@ fun DashboardHeroQuota(
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
+    val currentLastCelebrated by rememberUpdatedState(lastCelebratedMonthKey)
+    val currentOnMonthCelebrated by rememberUpdatedState(onMonthCelebrated)
+
     val reduceMotion = remember(context) {
         try {
             val scale = Settings.Global.getFloat(
@@ -152,33 +392,70 @@ fun DashboardHeroQuota(
         1f
     }
 
+    val thresholds = remember(requiredDaysThisMonth) {
+        if (requiredDaysThisMonth > 0) {
+            listOf(
+                (requiredDaysThisMonth + 2) / 3,
+                (2 * requiredDaysThisMonth + 2) / 3,
+                requiredDaysThisMonth
+            ).distinct()
+        } else {
+            emptyList()
+        }
+    }
+
     val celebrationSweep = remember { Animatable(targetProgress) }
     val celebrationScale = remember { Animatable(1f) }
     var isCelebrating by remember { mutableStateOf(false) }
 
-    LaunchedEffect(monthKey, validDaysThisMonth, requiredDaysThisMonth, lastCelebratedMonthKey) {
-        val shouldCelebrate = requiredDaysThisMonth > 0 &&
+    val confettiProgress = remember { Animatable(0f) }
+    var confettiTriggerId by remember { mutableIntStateOf(0) }
+    var previousMonthCount by remember { mutableStateOf<Pair<String, Int>?>(null) }
+
+    LaunchedEffect(monthKey, validDaysThisMonth, thresholds, isCurrentCalendarMonth) {
+        val prev = previousMonthCount
+        previousMonthCount = monthKey to validDaysThisMonth
+        if (prev != null && prev.first == monthKey && validDaysThisMonth > prev.second) {
+            val flipped = thresholds.any { t -> prev.second < t && validDaysThisMonth >= t }
+            val willRunQuotaCelebration = isCurrentCalendarMonth &&
+                requiredDaysThisMonth > 0 &&
+                validDaysThisMonth >= requiredDaysThisMonth &&
+                monthKey != currentLastCelebrated
+            if (flipped && !willRunQuotaCelebration && !reduceMotion) {
+                confettiTriggerId++
+            }
+        }
+    }
+
+    LaunchedEffect(monthKey, isCurrentCalendarMonth, validDaysThisMonth, requiredDaysThisMonth) {
+        val shouldCelebrate = isCurrentCalendarMonth &&
+            requiredDaysThisMonth > 0 &&
             validDaysThisMonth >= requiredDaysThisMonth &&
-            monthKey != lastCelebratedMonthKey
+            monthKey != currentLastCelebrated
 
         if (shouldCelebrate) {
-            onMonthCelebrated(monthKey)
             if (!reduceMotion) {
-                isCelebrating = true
-                val startFrac = ((validDaysThisMonth - 1).coerceAtLeast(0).toFloat() /
-                    requiredDaysThisMonth.toFloat()).coerceIn(0f, 1f)
-                celebrationSweep.snapTo(startFrac)
-                celebrationSweep.animateTo(
-                    targetValue = 1f,
-                    animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing)
-                )
-                HapticHelper.performMilestoneCelebration(context)
-                celebrationScale.animateTo(1.04f, animationSpec = tween(durationMillis = 150))
-                celebrationScale.animateTo(1f, animationSpec = tween(durationMillis = 220))
-                isCelebrating = false
+                try {
+                    isCelebrating = true
+                    val startFrac = ((validDaysThisMonth - 1).coerceAtLeast(0).toFloat() /
+                        requiredDaysThisMonth.toFloat()).coerceIn(0f, 1f)
+                    celebrationSweep.snapTo(startFrac)
+                    celebrationSweep.animateTo(
+                        targetValue = 1f,
+                        animationSpec = tween(durationMillis = 600, easing = FastOutSlowInEasing)
+                    )
+                    HapticHelper.performMilestoneCelebration(context)
+                    confettiTriggerId++
+                    celebrationScale.animateTo(1.04f, animationSpec = tween(durationMillis = 150))
+                    celebrationScale.animateTo(1f, animationSpec = tween(durationMillis = 220))
+                    currentOnMonthCelebrated(monthKey)
+                } finally {
+                    isCelebrating = false
+                }
             } else {
                 celebrationSweep.snapTo(1f)
                 celebrationScale.snapTo(1f)
+                currentOnMonthCelebrated(monthKey)
             }
         } else {
             celebrationSweep.snapTo(targetProgress)
@@ -186,185 +463,379 @@ fun DashboardHeroQuota(
         }
     }
 
+    LaunchedEffect(confettiTriggerId) {
+        if (confettiTriggerId > 0 && !reduceMotion) {
+            try {
+                confettiProgress.snapTo(0f)
+                confettiProgress.animateTo(
+                    targetValue = 1f,
+                    animationSpec = tween(durationMillis = 900, easing = LinearEasing)
+                )
+            } finally {
+                confettiProgress.snapTo(0f)
+            }
+        }
+    }
+
     val displayedProgress = if (isCelebrating) celebrationSweep.value else targetProgress
 
-    Column(
-        modifier = modifier.fillMaxWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp)
+    val presentColor = AppTheme.colors.present
+    val presentDeepColor = AppTheme.colors.presentDeep
+    val presentContainerColor = AppTheme.colors.presentContainer
+    val ruleColor = AppTheme.colors.rule
+    val rewardColor = AppTheme.colors.reward
+    val isDark = AppTheme.colors.isDark
+
+    Surface(
+        shape = SurfaceGroupShape,
+        color = AppTheme.colors.raised,
+        border = wfoCardBorder(),
+        modifier = modifier.fillMaxWidth()
     ) {
-        if (requiredDaysThisMonth > 0) {
-            val presentColor = AppTheme.colors.present
-            val presentDeepColor = AppTheme.colors.presentDeep
-            val ruleColor = AppTheme.colors.rule
-            val inkColor = AppTheme.colors.ink
-            val mutedColor = AppTheme.colors.muted
-
-            BoxWithConstraints(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.Center
+        Box(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(18.dp)
             ) {
-                val ringDiameter = minOf(maxWidth - 28.dp, 240.dp).coerceAtLeast(156.dp)
-                val canvasSize = ringDiameter + 24.dp
-                val density = LocalDensity.current
-                val fontScale = density.fontScale
+                BoxWithConstraints(modifier = Modifier.fillMaxWidth()) {
+                    val density = LocalDensity.current
+                    val stackVertically = density.fontScale >= 1.3f
+                    val ringDiameter = if (stackVertically) {
+                        minOf(maxWidth, 168.dp).coerceAtLeast(132.dp)
+                    } else {
+                        (maxWidth * 0.44f).coerceIn(132.dp, 168.dp)
+                    }
 
-                Box(
-                    modifier = Modifier
-                        .size(canvasSize)
-                        .graphicsLayer {
-                            scaleX = celebrationScale.value
-                            scaleY = celebrationScale.value
-                        }
-                        .clearAndSetSemantics {
-                            contentDescription = "$validDaysThisMonth of $requiredDaysThisMonth days completed in $monthName"
-                        },
-                    contentAlignment = Alignment.Center
-                ) {
-                    Canvas(modifier = Modifier.fillMaxSize()) {
-                        val strokePx = 14.dp.toPx()
-                        val ringSidePx = ringDiameter.toPx()
-                        val ringRadiusPx = ringSidePx / 2f
-                        val center = Offset(size.width / 2f, size.height / 2f)
-                        val arcTopLeft = Offset(
-                            x = center.x - ringRadiusPx + strokePx / 2f,
-                            y = center.y - ringRadiusPx + strokePx / 2f
-                        )
-                        val arcSize = Size(ringSidePx - strokePx, ringSidePx - strokePx)
-
-                        if (requiredDaysThisMonth <= 24) {
-                            val n = requiredDaysThisMonth
-                            val gapDegrees = 4f
-                            val stepDegrees = 360f / n
-                            val sweepDegrees = (stepDegrees - gapDegrees).coerceAtLeast(2f)
-
-                            for (index in 0 until n) {
-                                val startAngle = -90f + (index * stepDegrees) + (gapDegrees / 2f)
-                                val segmentThreshold = (index + 1).toFloat() / n.toFloat()
-                                val isFilled = if (isCelebrating) {
-                                    displayedProgress >= segmentThreshold - 0.0001f
-                                } else {
-                                    index < validDaysThisMonth
-                                }
-
-                                drawArc(
-                                    color = if (isFilled) presentColor else ruleColor,
-                                    startAngle = startAngle,
-                                    sweepAngle = sweepDegrees,
-                                    useCenter = false,
-                                    topLeft = arcTopLeft,
-                                    size = arcSize,
-                                    style = Stroke(width = strokePx, cap = StrokeCap.Butt)
+                    if (!stackVertically) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(16.dp)
+                        ) {
+                            if (requiredDaysThisMonth > 0) {
+                                HeroProgressRing(
+                                    ringDiameter = ringDiameter,
+                                    validDays = validDaysThisMonth,
+                                    requiredDays = requiredDaysThisMonth,
+                                    monthName = monthName,
+                                    displayedProgress = displayedProgress,
+                                    isCelebrating = isCelebrating,
+                                    scaleFactor = celebrationScale.value
                                 )
                             }
-                        } else {
-                            drawArc(
-                                color = ruleColor,
-                                startAngle = -90f,
-                                sweepAngle = 360f,
-                                useCenter = false,
-                                topLeft = arcTopLeft,
-                                size = arcSize,
-                                style = Stroke(width = strokePx, cap = StrokeCap.Butt)
+                            HeroInfoColumn(
+                                monthName = monthName,
+                                paceMessage = paceMessage,
+                                weeklyStreak = weeklyStreak,
+                                onStreakClick = onStreakClick,
+                                centered = requiredDaysThisMonth <= 0,
+                                modifier = Modifier.weight(1f)
                             )
-                            val filledSweep = 360f * displayedProgress
-                            if (filledSweep > 0f) {
-                                drawArc(
-                                    color = presentColor,
-                                    startAngle = -90f,
-                                    sweepAngle = filledSweep,
-                                    useCenter = false,
-                                    topLeft = arcTopLeft,
-                                    size = arcSize,
-                                    style = Stroke(width = strokePx, cap = StrokeCap.Butt)
+                        }
+                    } else {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(14.dp)
+                        ) {
+                            if (requiredDaysThisMonth > 0) {
+                                HeroProgressRing(
+                                    ringDiameter = ringDiameter,
+                                    validDays = validDaysThisMonth,
+                                    requiredDays = requiredDaysThisMonth,
+                                    monthName = monthName,
+                                    displayedProgress = displayedProgress,
+                                    isCelebrating = isCelebrating,
+                                    scaleFactor = celebrationScale.value
                                 )
                             }
-                        }
-
-                        // Milestone ticks outside the ring at 25%, 50%, 75%, and 100%
-                        val milestones = listOf(0.25f, 0.50f, 0.75f, 1.00f)
-                        val tickInnerRadius = ringRadiusPx + 4.dp.toPx()
-                        val tickOuterRadius = ringRadiusPx + 9.dp.toPx()
-                        val tickStroke = 2.5.dp.toPx()
-
-                        milestones.forEach { milestone ->
-                            val reached = displayedProgress >= milestone - 0.0001f
-                            val angleRad = Math.toRadians(-90.0 + (360.0 * milestone))
-                            val cosA = cos(angleRad).toFloat()
-                            val sinA = sin(angleRad).toFloat()
-                            drawLine(
-                                color = if (reached) presentDeepColor else ruleColor,
-                                start = Offset(
-                                    center.x + tickInnerRadius * cosA,
-                                    center.y + tickInnerRadius * sinA
-                                ),
-                                end = Offset(
-                                    center.x + tickOuterRadius * cosA,
-                                    center.y + tickOuterRadius * sinA
-                                ),
-                                strokeWidth = tickStroke,
-                                cap = StrokeCap.Round
+                            HeroInfoColumn(
+                                monthName = monthName,
+                                paceMessage = paceMessage,
+                                weeklyStreak = weeklyStreak,
+                                onStreakClick = onStreakClick,
+                                centered = true,
+                                modifier = Modifier.fillMaxWidth()
                             )
                         }
                     }
+                }
 
-                    // Center label inside the ring
-                    val innerTextWidth = (ringDiameter - 44.dp).coerceAtLeast(100.dp)
-                    val headlineText = "$validDaysThisMonth of $requiredDaysThisMonth"
-                    var fontSizeSp by remember(headlineText, innerTextWidth, fontScale) {
-                        val initial = if (fontScale > 1.05f) (48f / fontScale).coerceAtLeast(28f) else 56f
-                        mutableStateOf(initial.sp)
-                    }
-
-                    Column(
-                        modifier = Modifier.width(innerTextWidth),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(2.dp)
+                // Milestone badge row inside the card
+                if (thresholds.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.Top,
+                        horizontalArrangement = Arrangement.Center
                     ) {
-                        Text(
-                            text = headlineText,
-                            style = MaterialTheme.typography.displayLarge.copy(
-                                fontSize = fontSizeSp,
-                                lineHeight = (fontSizeSp.value * 1.12f).sp
-                            ),
-                            color = inkColor,
-                            maxLines = 1,
-                            softWrap = false,
-                            textAlign = TextAlign.Center,
-                            onTextLayout = { result ->
-                                if ((result.hasVisualOverflow || result.didOverflowWidth) && fontSizeSp.value > 20f) {
-                                    fontSizeSp = (fontSizeSp.value * 0.88f).sp
+                        thresholds.forEachIndexed { index, threshold ->
+                            if (index > 0) {
+                                Box(
+                                    modifier = Modifier
+                                        .weight(1f)
+                                        .height(40.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    HorizontalDivider(
+                                        color = ruleColor,
+                                        thickness = 1.dp
+                                    )
                                 }
+                            } else {
+                                Spacer(modifier = Modifier.weight(0.35f))
                             }
-                        )
-                        Text(
-                            text = "days in $monthName",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = mutedColor,
-                            textAlign = TextAlign.Center
-                        )
+
+                            val isReached = validDaysThisMonth >= threshold
+                            val isFinal = threshold == requiredDaysThisMonth
+                            val dayWord = if (threshold == 1) "day" else "days"
+                            val badgeDesc = "$threshold $dayWord, ${if (isReached) "reached" else "locked"}"
+
+                            val badgeColor = when {
+                                !isReached -> Color.Transparent
+                                isFinal -> rewardColor
+                                else -> presentColor
+                            }
+                            val badgeBorder = when {
+                                !isReached -> BorderStroke(1.5.dp, ruleColor)
+                                isFinal && !isDark -> BorderStroke(1.dp, AppTheme.colors.short)
+                                else -> null
+                            }
+                            val iconTint = if (isReached) AppTheme.colors.onPresent else AppTheme.colors.muted
+
+                            Column(
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier.clearAndSetSemantics {
+                                    contentDescription = badgeDesc
+                                }
+                            ) {
+                                Surface(
+                                    shape = CircleShape,
+                                    color = badgeColor,
+                                    border = badgeBorder,
+                                    modifier = Modifier.size(40.dp)
+                                ) {
+                                    Box(contentAlignment = Alignment.Center) {
+                                        Icon(
+                                            imageVector = Icons.Default.CardGiftcard,
+                                            contentDescription = null,
+                                            tint = iconTint,
+                                            modifier = Modifier.size(20.dp)
+                                        )
+                                    }
+                                }
+                                Text(
+                                    text = "$threshold",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = if (isReached) AppTheme.colors.ink else AppTheme.colors.muted,
+                                    fontWeight = if (isReached) FontWeight.SemiBold else FontWeight.Normal
+                                )
+                            }
+
+                            if (index == thresholds.lastIndex) {
+                                Spacer(modifier = Modifier.weight(0.35f))
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Brief confetti burst overlay (no confetti at rest)
+            val cProgress = confettiProgress.value
+            if (cProgress > 0f && cProgress < 1f) {
+                val confettiColors = listOf(presentColor, presentDeepColor, rewardColor, presentContainerColor)
+                Canvas(modifier = Modifier.matchParentSize()) {
+                    val alpha = ((1f - cProgress) / 0.45f).coerceIn(0f, 1f)
+                    HERO_CONFETTI_SPECS.forEach { spec ->
+                        val cx = size.width * (spec.startX + spec.driftX * cProgress)
+                        val cy = size.height * (spec.startY + spec.speedY * cProgress)
+                        val particleColor = confettiColors[spec.colorSlot % confettiColors.size].copy(alpha = alpha)
+                        val sPx = spec.sizeDp.dp.toPx()
+                        if (spec.isCircle) {
+                            drawCircle(
+                                color = particleColor,
+                                radius = sPx / 2f,
+                                center = Offset(cx, cy)
+                            )
+                        } else {
+                            rotate(
+                                degrees = spec.baseRotation + spec.spinDeg * cProgress,
+                                pivot = Offset(cx, cy)
+                            ) {
+                                drawRect(
+                                    color = particleColor,
+                                    topLeft = Offset(cx - sPx * 0.6f, cy - sPx * 0.35f),
+                                    size = Size(sPx * 1.2f, sPx * 0.7f)
+                                )
+                            }
+                        }
                     }
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun HeroProgressRing(
+    ringDiameter: Dp,
+    validDays: Int,
+    requiredDays: Int,
+    monthName: String,
+    displayedProgress: Float,
+    isCelebrating: Boolean,
+    scaleFactor: Float
+) {
+    val presentColor = AppTheme.colors.present
+    val ruleColor = AppTheme.colors.rule
+    val inkColor = AppTheme.colors.ink
+    val mutedColor = AppTheme.colors.muted
+    val fontScale = LocalDensity.current.fontScale
+
+    Box(
+        modifier = Modifier
+            .size(ringDiameter)
+            .graphicsLayer {
+                scaleX = scaleFactor
+                scaleY = scaleFactor
+            }
+            .clearAndSetSemantics {
+                contentDescription = "$validDays of $requiredDays days completed in $monthName"
+            },
+        contentAlignment = Alignment.Center
+    ) {
+        Canvas(modifier = Modifier.fillMaxSize()) {
+            val strokePx = 12.dp.toPx()
+            val inset = strokePx / 2f
+            val arcTopLeft = Offset(inset, inset)
+            val arcSize = Size(size.width - strokePx, size.height - strokePx)
+
+            if (requiredDays <= 24) {
+                val n = requiredDays
+                val gapDegrees = 4f
+                val stepDegrees = 360f / n
+                val sweepDegrees = (stepDegrees - gapDegrees).coerceAtLeast(2f)
+
+                for (index in 0 until n) {
+                    val startAngle = -90f + (index * stepDegrees) + (gapDegrees / 2f)
+                    val segmentThreshold = (index + 1).toFloat() / n.toFloat()
+                    val isFilled = if (isCelebrating) {
+                        displayedProgress >= segmentThreshold - 0.0001f
+                    } else {
+                        index < validDays
+                    }
+
+                    drawArc(
+                        color = if (isFilled) presentColor else ruleColor,
+                        startAngle = startAngle,
+                        sweepAngle = sweepDegrees,
+                        useCenter = false,
+                        topLeft = arcTopLeft,
+                        size = arcSize,
+                        style = Stroke(width = strokePx, cap = StrokeCap.Butt)
+                    )
+                }
+            } else {
+                drawArc(
+                    color = ruleColor,
+                    startAngle = -90f,
+                    sweepAngle = 360f,
+                    useCenter = false,
+                    topLeft = arcTopLeft,
+                    size = arcSize,
+                    style = Stroke(width = strokePx, cap = StrokeCap.Butt)
+                )
+                val filledSweep = 360f * displayedProgress
+                if (filledSweep > 0f) {
+                    drawArc(
+                        color = presentColor,
+                        startAngle = -90f,
+                        sweepAngle = filledSweep,
+                        useCenter = false,
+                        topLeft = arcTopLeft,
+                        size = arcSize,
+                        style = Stroke(width = strokePx, cap = StrokeCap.Butt)
+                    )
+                }
+            }
+        }
+
+        val innerTextWidth = (ringDiameter - 34.dp).coerceAtLeast(80.dp)
+        val ratioText = "$validDays / $requiredDays"
+        var numeralSizeSp by remember(ratioText, innerTextWidth, fontScale) {
+            val base = if (fontScale > 1.05f) (28f / fontScale).coerceAtLeast(20f) else 28f
+            mutableStateOf(base.sp)
+        }
+
+        Column(
+            modifier = Modifier.width(innerTextWidth),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(2.dp)
+        ) {
+            Text(
+                text = ratioText,
+                style = MaterialTheme.typography.headlineLarge.copy(
+                    fontSize = numeralSizeSp,
+                    lineHeight = (numeralSizeSp.value * 1.15f).sp
+                ),
+                color = inkColor,
+                maxLines = 1,
+                softWrap = false,
+                textAlign = TextAlign.Center,
+                onTextLayout = { result ->
+                    if ((result.hasVisualOverflow || result.didOverflowWidth) && numeralSizeSp.value > 16f) {
+                        numeralSizeSp = (numeralSizeSp.value * 0.88f).sp
+                    }
+                }
+            )
+            Text(
+                text = "days",
+                style = MaterialTheme.typography.bodyMedium,
+                color = mutedColor,
+                textAlign = TextAlign.Center
+            )
+        }
+    }
+}
+
+@Composable
+private fun HeroInfoColumn(
+    monthName: String,
+    paceMessage: DashboardHeroMessage,
+    weeklyStreak: Int,
+    onStreakClick: () -> Unit,
+    centered: Boolean,
+    modifier: Modifier = Modifier
+) {
+    val streakText = "Streak: $weeklyStreak ${if (weeklyStreak == 1) "week" else "weeks"}"
+    val streakActive = weeklyStreak > 0
+
+    Column(
+        modifier = modifier,
+        horizontalAlignment = if (centered) Alignment.CenterHorizontally else Alignment.Start,
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Text(
+            text = monthName,
+            style = MaterialTheme.typography.titleLarge,
+            color = AppTheme.colors.ink,
+            textAlign = if (centered) TextAlign.Center else TextAlign.Start
+        )
 
         Text(
             text = paceMessage.text,
             style = MaterialTheme.typography.bodyMedium,
             color = if (paceMessage.isPaceWarning) AppTheme.colors.short else AppTheme.colors.muted,
-            textAlign = TextAlign.Center,
-            modifier = Modifier
-                .fillMaxWidth()
-                .semantics { liveRegion = LiveRegionMode.Polite }
+            textAlign = if (centered) TextAlign.Center else TextAlign.Start,
+            modifier = Modifier.semantics { liveRegion = LiveRegionMode.Polite }
         )
 
-        // Streak pill chip on the hero
-        val streakText = "Streak: $weeklyStreak ${if (weeklyStreak == 1) "week" else "weeks"}"
-        val streakActive = weeklyStreak > 0
         Surface(
             onClick = onStreakClick,
             shape = ChipShape,
-            color = if (streakActive) AppTheme.colors.presentContainer else AppTheme.colors.raised,
+            color = if (streakActive) AppTheme.colors.presentContainer else AppTheme.colors.sheet,
             border = BorderStroke(
                 width = 1.dp,
                 color = if (streakActive) AppTheme.colors.presentDeep else AppTheme.colors.rule
@@ -374,7 +845,7 @@ fun DashboardHeroQuota(
                 .semantics { role = Role.Button }
         ) {
             Box(
-                modifier = Modifier.padding(horizontal = 18.dp, vertical = 10.dp),
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
                 contentAlignment = Alignment.Center
             ) {
                 Text(
@@ -413,12 +884,15 @@ fun DashboardPunchControl(
             WfoPrimaryButton(
                 text = "Punch in",
                 onClick = onPunchInClick,
+                icon = Icons.AutoMirrored.Filled.Login,
+                iconSize = 24.dp,
                 modifier = Modifier.fillMaxWidth()
             )
 
             WfoTextButton(
                 text = "Arrived earlier?",
                 onClick = onArrivedEarlierClick,
+                icon = Icons.Default.Schedule,
                 textColorOverride = AppTheme.colors.presentDeep
             )
         } else {
@@ -493,6 +967,8 @@ fun DashboardPunchControl(
             WfoPrimaryButton(
                 text = "Punch out",
                 onClick = onPunchOutClick,
+                icon = Icons.AutoMirrored.Filled.Logout,
+                iconSize = 24.dp,
                 modifier = Modifier.fillMaxWidth()
             )
         }

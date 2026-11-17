@@ -8,13 +8,27 @@ data class DashboardHeroMessage(
     val isPaceWarning: Boolean
 )
 
+enum class GreetingTimeOfDay {
+    MORNING,
+    AFTERNOON,
+    EVENING
+}
+
 object DashboardCalculations {
 
+    fun timeOfDay(hourOfDay: Int): GreetingTimeOfDay {
+        return when {
+            hourOfDay < 12 -> GreetingTimeOfDay.MORNING
+            hourOfDay <= 17 -> GreetingTimeOfDay.AFTERNOON
+            else -> GreetingTimeOfDay.EVENING
+        }
+    }
+
     fun greetingParts(employeeName: String, hourOfDay: Int): Pair<String, String?> {
-        val salutation = when {
-            hourOfDay < 12 -> "Good morning"
-            hourOfDay < 17 -> "Good afternoon"
-            else -> "Good evening"
+        val salutation = when (timeOfDay(hourOfDay)) {
+            GreetingTimeOfDay.MORNING -> "Good morning"
+            GreetingTimeOfDay.AFTERNOON -> "Good afternoon"
+            GreetingTimeOfDay.EVENING -> "Good evening"
         }
         val firstName = employeeName
             .trim()
@@ -24,7 +38,7 @@ object DashboardCalculations {
         return if (firstName == null) {
             salutation to null
         } else {
-            "$salutation, " to firstName
+            "$salutation," to firstName
         }
     }
 

@@ -60,6 +60,7 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.example.ui.theme.AppTheme
 import com.example.ui.theme.ButtonShape
@@ -87,7 +88,8 @@ fun WfoPrimaryButton(
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
     icon: ImageVector? = null,
-    isDanger: Boolean = false
+    isDanger: Boolean = false,
+    iconSize: Dp = 18.dp
 ) {
     val containerColor = if (isDanger) AppTheme.colors.danger else AppTheme.colors.present
     val contentColor = if (isDanger) {
@@ -114,7 +116,7 @@ fun WfoPrimaryButton(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                modifier = Modifier.size(18.dp)
+                modifier = Modifier.size(iconSize)
             )
             Spacer(modifier = Modifier.width(8.dp))
         }

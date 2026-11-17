@@ -23,6 +23,7 @@ private val DarkAppColors = AppColors(
     presentContainer = DarkPresentContainer,
     short = DarkShort,
     danger = DarkDanger,
+    reward = DarkReward,
     isDark = true
 )
 
@@ -39,6 +40,7 @@ private val LightAppColors = AppColors(
     presentContainer = LightPresentContainer,
     short = LightShort,
     danger = LightDanger,
+    reward = LightReward,
     isDark = false
 )
 

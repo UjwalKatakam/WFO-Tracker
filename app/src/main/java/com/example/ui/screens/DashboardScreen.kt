@@ -394,19 +394,24 @@ fun DashboardScreen(
                 )
             }
 
-            // 0. GREETING LINE
+            // 0. GREETING ROW WITH SKYLINE
             val nowCal = remember(uiState.selectedCalendarDateKey, uiState.logs.size) {
                 Calendar.getInstance()
             }
-            val (greetingPrefix, firstName) = remember(uiState.settings.employeeName, nowCal.get(Calendar.HOUR_OF_DAY)) {
+            val currentHour = nowCal.get(Calendar.HOUR_OF_DAY)
+            val greetingTimeOfDay = remember(currentHour) {
+                DashboardCalculations.timeOfDay(currentHour)
+            }
+            val (greetingLine, firstName) = remember(uiState.settings.employeeName, currentHour) {
                 DashboardCalculations.greetingParts(
                     employeeName = uiState.settings.employeeName,
-                    hourOfDay = nowCal.get(Calendar.HOUR_OF_DAY)
+                    hourOfDay = currentHour
                 )
             }
             DashboardGreeting(
-                greetingPrefix = greetingPrefix,
-                firstName = firstName
+                greetingLine = greetingLine,
+                firstName = firstName,
+                timeOfDay = greetingTimeOfDay
             )
 
             // 1. HERO QUOTA RING COMPONENT
@@ -441,9 +446,13 @@ fun DashboardScreen(
                 )
             }
 
+            val isCurrentCalendarMonth = uiState.dashboardNavYear == nowCal.get(Calendar.YEAR) &&
+                uiState.dashboardNavMonth == nowCal.get(Calendar.MONTH)
+
             DashboardHeroQuota(
                 monthName = monthName,
                 monthKey = monthKey,
+                isCurrentCalendarMonth = isCurrentCalendarMonth,
                 lastCelebratedMonthKey = uiState.settings.lastCelebratedMonthKey,
                 validDaysThisMonth = uiState.validDaysThisMonth,
                 requiredDaysThisMonth = uiState.requiredDaysThisMonth,
