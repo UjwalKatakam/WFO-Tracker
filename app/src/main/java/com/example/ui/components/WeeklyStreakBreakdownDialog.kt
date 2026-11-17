@@ -28,6 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.example.ui.theme.AppTheme
+import com.example.ui.theme.SurfaceGroupShape
 import com.example.ui.viewmodel.WfoUiState
 import java.util.Locale
 
@@ -44,8 +45,8 @@ fun WeeklyStreakBreakdownDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(12.dp),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = SurfaceGroupShape,
+        containerColor = AppTheme.colors.sheet,
         title = {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -56,7 +57,7 @@ fun WeeklyStreakBreakdownDialog(
                     Icon(
                         imageVector = Icons.Default.LocalFireDepartment,
                         contentDescription = null,
-                        tint = AppTheme.colors.present,
+                        tint = AppTheme.colors.reward,
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
@@ -112,7 +113,7 @@ fun WeeklyStreakBreakdownDialog(
                                 text = "$validDaysThisWeek of $targetDays days completed",
                                 style = MaterialTheme.typography.bodyMedium,
                                 fontWeight = FontWeight.Medium,
-                                color = if (validDaysThisWeek >= targetDays) AppTheme.colors.present else AppTheme.colors.ink
+                                color = if (validDaysThisWeek >= targetDays) AppTheme.colors.presentDeep else AppTheme.colors.ink
                             )
                         }
                         Text(
@@ -123,7 +124,7 @@ fun WeeklyStreakBreakdownDialog(
                             },
                             style = MaterialTheme.typography.labelSmall,
                             fontWeight = FontWeight.Medium,
-                            color = if (validDaysThisWeek >= targetDays) AppTheme.colors.present else AppTheme.colors.short
+                            color = if (validDaysThisWeek >= targetDays) AppTheme.colors.presentDeep else AppTheme.colors.short
                         )
                     }
                 }
@@ -181,7 +182,7 @@ fun WeeklyStreakBreakdownDialog(
                                                 text = "${String.format(Locale.US, "%.1f", day.hours)}h (office)",
                                                 style = MaterialTheme.typography.bodySmall,
                                                 fontWeight = FontWeight.Medium,
-                                                color = AppTheme.colors.present
+                                                color = AppTheme.colors.presentDeep
                                             )
                                         }
                                         day.isLeave -> {

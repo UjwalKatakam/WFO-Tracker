@@ -34,6 +34,7 @@ import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.CardGiftcard
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -54,11 +55,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
@@ -75,6 +74,8 @@ import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -91,235 +92,64 @@ import java.util.Locale
 private val WeekTileShape = RoundedCornerShape(12.dp)
 
 // ============================================================================
-// 0. GREETING ROW WITH DECORATIVE SKYLINE
+// 0. GREETING OVER HEADER SCENE
 // ============================================================================
 
 @Composable
 fun DashboardGreeting(
     greetingLine: String,
     firstName: String?,
-    timeOfDay: GreetingTimeOfDay,
+    textColor: Color,
+    linkColor: Color,
+    onAddNameClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val isLargeFont = LocalDensity.current.fontScale >= 1.3f
-    val skylineWidth = if (isLargeFont) 96.dp else 128.dp
-    val skylineHeight = if (isLargeFont) 66.dp else 88.dp
-
-    Row(
-        modifier = modifier.fillMaxWidth(),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    Column(
+        modifier = modifier.fillMaxWidth(0.70f),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
     ) {
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.spacedBy(2.dp)
-        ) {
+        if (!firstName.isNullOrBlank()) {
             Text(
                 text = greetingLine,
                 style = MaterialTheme.typography.titleMedium,
-                color = AppTheme.colors.muted
+                color = textColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
             )
-            if (!firstName.isNullOrBlank()) {
+            Text(
+                text = firstName,
+                style = MaterialTheme.typography.headlineLarge,
+                color = textColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+        } else {
+            Text(
+                text = greetingLine,
+                style = MaterialTheme.typography.headlineMedium,
+                color = textColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis
+            )
+            Box(
+                modifier = Modifier
+                    .defaultMinSize(minHeight = 48.dp)
+                    .clickable(role = Role.Button, onClick = onAddNameClick)
+                    .padding(vertical = 8.dp),
+                contentAlignment = Alignment.CenterStart
+            ) {
                 Text(
-                    text = firstName,
-                    style = MaterialTheme.typography.headlineLarge,
-                    color = AppTheme.colors.ink
+                    text = "Add your name in Settings",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = linkColor,
+                    fontWeight = FontWeight.Medium,
+                    textDecoration = TextDecoration.Underline,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
                 )
             }
         }
-
-        SkylineIllustration(
-            timeOfDay = timeOfDay,
-            modifier = Modifier.size(width = skylineWidth, height = skylineHeight)
-        )
     }
-}
-
-@Composable
-private fun SkylineIllustration(
-    timeOfDay: GreetingTimeOfDay,
-    modifier: Modifier = Modifier
-) {
-    val groundColor = AppTheme.colors.ground
-    val ruleColor = AppTheme.colors.rule
-    val containerColor = AppTheme.colors.presentContainer
-    val presentColor = AppTheme.colors.present
-    val deepColor = AppTheme.colors.presentDeep
-    val rewardColor = AppTheme.colors.reward
-
-    Canvas(modifier = modifier) {
-        val w = size.width
-        val h = size.height
-
-        // Sky element + cloud (morning: low sun; afternoon: high sun; evening: crescent moon + stars)
-        when (timeOfDay) {
-            GreetingTimeOfDay.MORNING -> {
-                // Low sun
-                drawCircle(
-                    color = rewardColor,
-                    radius = h * 0.11f,
-                    center = Offset(w * 0.20f, h * 0.44f)
-                )
-                // Flat cloud
-                drawFlatCloud(
-                    color = containerColor,
-                    left = w * 0.40f,
-                    top = h * 0.15f,
-                    width = w * 0.34f,
-                    height = h * 0.15f
-                )
-            }
-
-            GreetingTimeOfDay.AFTERNOON -> {
-                // High sun
-                drawCircle(
-                    color = rewardColor,
-                    radius = h * 0.11f,
-                    center = Offset(w * 0.22f, h * 0.19f)
-                )
-                // Flat cloud
-                drawFlatCloud(
-                    color = containerColor,
-                    left = w * 0.48f,
-                    top = h * 0.18f,
-                    width = w * 0.32f,
-                    height = h * 0.14f
-                )
-            }
-
-            GreetingTimeOfDay.EVENING -> {
-                // Crescent moon (flat solid shape via ground cutout)
-                val moonCenter = Offset(w * 0.22f, h * 0.23f)
-                val moonRadius = h * 0.105f
-                drawCircle(
-                    color = rewardColor,
-                    radius = moonRadius,
-                    center = moonCenter
-                )
-                drawCircle(
-                    color = groundColor,
-                    radius = moonRadius * 0.85f,
-                    center = Offset(moonCenter.x + moonRadius * 0.45f, moonCenter.y - moonRadius * 0.25f)
-                )
-                // Three small stars
-                drawCircle(color = rewardColor, radius = 1.8.dp.toPx(), center = Offset(w * 0.43f, h * 0.15f))
-                drawCircle(color = rewardColor, radius = 1.5.dp.toPx(), center = Offset(w * 0.56f, h * 0.25f))
-                drawCircle(color = rewardColor, radius = 1.8.dp.toPx(), center = Offset(w * 0.86f, h * 0.13f))
-            }
-        }
-
-        // Background smaller building on the left (rule)
-        drawRoundRect(
-            color = ruleColor,
-            topLeft = Offset(w * 0.08f, h * 0.55f),
-            size = Size(w * 0.20f, h * 0.41f),
-            cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx())
-        )
-
-        // Tall office building in the middle-right (presentDeep)
-        drawRoundRect(
-            color = deepColor,
-            topLeft = Offset(w * 0.50f, h * 0.30f),
-            size = Size(w * 0.26f, h * 0.66f),
-            cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx())
-        )
-
-        // Building with pitched roof edge on the left-center (present)
-        val pitchedLeft = w * 0.25f
-        val pitchedRight = w * 0.54f
-        val pitchedBaseY = h * 0.96f
-        val pitchedPath = Path().apply {
-            moveTo(pitchedLeft, pitchedBaseY)
-            lineTo(pitchedLeft, h * 0.46f)
-            lineTo(pitchedRight, h * 0.36f)
-            lineTo(pitchedRight, pitchedBaseY)
-            close()
-        }
-        drawPath(path = pitchedPath, color = presentColor)
-
-        // Rightmost shorter wing (containerColor)
-        drawRoundRect(
-            color = containerColor,
-            topLeft = Offset(w * 0.74f, h * 0.52f),
-            size = Size(w * 0.19f, h * 0.44f),
-            cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx())
-        )
-
-        // Simple window grids (flat solid shapes)
-        val winW = w * 0.045f
-        val winH = h * 0.065f
-
-        // Windows on pitched building (2x3)
-        for (row in 0..2) {
-            for (col in 0..1) {
-                val wx = w * (0.31f + col * 0.10f)
-                val wy = h * (0.54f + row * 0.12f)
-                val isLit = timeOfDay == GreetingTimeOfDay.EVENING && ((row == 0 && col == 1) || (row == 2 && col == 0))
-                drawRect(
-                    color = if (isLit) rewardColor else groundColor,
-                    topLeft = Offset(wx, wy),
-                    size = Size(winW, winH)
-                )
-            }
-        }
-
-        // Windows on tall building (2x4)
-        for (row in 0..3) {
-            for (col in 0..1) {
-                val wx = w * (0.565f + col * 0.09f)
-                val wy = h * (0.38f + row * 0.12f)
-                val isLit = timeOfDay == GreetingTimeOfDay.EVENING && ((row == 1 && col == 0) || (row == 2 && col == 1))
-                drawRect(
-                    color = if (isLit) rewardColor else containerColor,
-                    topLeft = Offset(wx, wy),
-                    size = Size(winW, winH)
-                )
-            }
-        }
-
-        // Windows on right wing (1x2)
-        for (row in 0..1) {
-            val isLit = timeOfDay == GreetingTimeOfDay.EVENING && row == 0
-            drawRect(
-                color = if (isLit) rewardColor else deepColor,
-                topLeft = Offset(w * 0.81f, h * (0.62f + row * 0.13f)),
-                size = Size(winW, winH)
-            )
-        }
-
-        // Flat ground baseline strip
-        drawRoundRect(
-            color = ruleColor,
-            topLeft = Offset(w * 0.03f, h * 0.94f),
-            size = Size(w * 0.94f, h * 0.04f),
-            cornerRadius = CornerRadius(2.dp.toPx(), 2.dp.toPx())
-        )
-    }
-}
-
-private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawFlatCloud(
-    color: Color,
-    left: Float,
-    top: Float,
-    width: Float,
-    height: Float
-) {
-    drawRoundRect(
-        color = color,
-        topLeft = Offset(left, top + height * 0.35f),
-        size = Size(width, height * 0.65f),
-        cornerRadius = CornerRadius(height * 0.35f, height * 0.35f)
-    )
-    drawCircle(
-        color = color,
-        radius = height * 0.42f,
-        center = Offset(left + width * 0.38f, top + height * 0.42f)
-    )
-    drawCircle(
-        color = color,
-        radius = height * 0.32f,
-        center = Offset(left + width * 0.66f, top + height * 0.50f)
-    )
 }
 
 // ============================================================================
@@ -479,18 +309,23 @@ fun DashboardHeroQuota(
 
     val displayedProgress = if (isCelebrating) celebrationSweep.value else targetProgress
 
-    val presentColor = AppTheme.colors.present
+    val progressColor = AppTheme.colors.progress
     val presentDeepColor = AppTheme.colors.presentDeep
     val presentContainerColor = AppTheme.colors.presentContainer
     val ruleColor = AppTheme.colors.rule
+    val trackOutlineColor = AppTheme.colors.trackOutline
     val rewardColor = AppTheme.colors.reward
     val isDark = AppTheme.colors.isDark
 
+    val heroCardColor = if (isDark) AppTheme.colors.card else AppTheme.colors.card.copy(alpha = 0.92f)
+
     Surface(
         shape = SurfaceGroupShape,
-        color = AppTheme.colors.raised,
+        color = heroCardColor,
         border = wfoCardBorder(),
-        modifier = modifier.fillMaxWidth()
+        modifier = modifier
+            .fillMaxWidth()
+            .then(wfoCardShadow(elevation = 4.dp, shape = SurfaceGroupShape))
     ) {
         Box(modifier = Modifier.fillMaxWidth()) {
             Column(
@@ -565,6 +400,7 @@ fun DashboardHeroQuota(
 
                 // Milestone badge row inside the card
                 if (thresholds.isNotEmpty()) {
+                    val connectorColor = if (isDark) ruleColor else trackOutlineColor.copy(alpha = 0.45f)
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.Top,
@@ -579,7 +415,7 @@ fun DashboardHeroQuota(
                                     contentAlignment = Alignment.Center
                                 ) {
                                     HorizontalDivider(
-                                        color = ruleColor,
+                                        color = connectorColor,
                                         thickness = 1.dp
                                     )
                                 }
@@ -592,17 +428,18 @@ fun DashboardHeroQuota(
                             val dayWord = if (threshold == 1) "day" else "days"
                             val badgeDesc = "$threshold $dayWord, ${if (isReached) "reached" else "locked"}"
 
-                            val badgeColor = when {
-                                !isReached -> Color.Transparent
-                                isFinal -> rewardColor
-                                else -> presentColor
-                            }
+                            val badgeColor = AppTheme.colors.card
                             val badgeBorder = when {
-                                !isReached -> BorderStroke(1.5.dp, ruleColor)
-                                isFinal && !isDark -> BorderStroke(1.dp, AppTheme.colors.short)
+                                !isReached -> BorderStroke(1.5.dp, trackOutlineColor)
+                                isDark && isFinal -> BorderStroke(1.dp, rewardColor)
+                                isDark -> BorderStroke(1.dp, progressColor)
                                 else -> null
                             }
-                            val iconTint = if (isReached) AppTheme.colors.onPresent else AppTheme.colors.muted
+                            val iconTint = when {
+                                !isReached -> AppTheme.colors.muted
+                                isFinal -> rewardColor
+                                else -> progressColor
+                            }
 
                             Column(
                                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -615,7 +452,9 @@ fun DashboardHeroQuota(
                                     shape = CircleShape,
                                     color = badgeColor,
                                     border = badgeBorder,
-                                    modifier = Modifier.size(40.dp)
+                                    modifier = Modifier
+                                        .size(40.dp)
+                                        .then(wfoCardShadow(elevation = 3.dp, shape = CircleShape))
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
@@ -645,7 +484,7 @@ fun DashboardHeroQuota(
             // Brief confetti burst overlay (no confetti at rest)
             val cProgress = confettiProgress.value
             if (cProgress > 0f && cProgress < 1f) {
-                val confettiColors = listOf(presentColor, presentDeepColor, rewardColor, presentContainerColor)
+                val confettiColors = listOf(progressColor, presentDeepColor, rewardColor, presentContainerColor)
                 Canvas(modifier = Modifier.matchParentSize()) {
                     val alpha = ((1f - cProgress) / 0.45f).coerceIn(0f, 1f)
                     HERO_CONFETTI_SPECS.forEach { spec ->
@@ -688,8 +527,9 @@ private fun HeroProgressRing(
     isCelebrating: Boolean,
     scaleFactor: Float
 ) {
-    val presentColor = AppTheme.colors.present
-    val ruleColor = AppTheme.colors.rule
+    val progressColor = AppTheme.colors.progress
+    val trackEmptyColor = AppTheme.colors.trackEmpty
+    val trackOutlineColor = AppTheme.colors.trackOutline
     val inkColor = AppTheme.colors.ink
     val mutedColor = AppTheme.colors.muted
     val fontScale = LocalDensity.current.fontScale
@@ -708,6 +548,7 @@ private fun HeroProgressRing(
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val strokePx = 12.dp.toPx()
+            val innerStrokePx = (strokePx - 2.dp.toPx()).coerceAtLeast(strokePx * 0.7f)
             val inset = strokePx / 2f
             val arcTopLeft = Offset(inset, inset)
             val arcSize = Size(size.width - strokePx, size.height - strokePx)
@@ -727,19 +568,42 @@ private fun HeroProgressRing(
                         index < validDays
                     }
 
-                    drawArc(
-                        color = if (isFilled) presentColor else ruleColor,
-                        startAngle = startAngle,
-                        sweepAngle = sweepDegrees,
-                        useCenter = false,
-                        topLeft = arcTopLeft,
-                        size = arcSize,
-                        style = Stroke(width = strokePx, cap = StrokeCap.Butt)
-                    )
+                    if (isFilled) {
+                        drawArc(
+                            color = progressColor,
+                            startAngle = startAngle,
+                            sweepAngle = sweepDegrees,
+                            useCenter = false,
+                            topLeft = arcTopLeft,
+                            size = arcSize,
+                            style = Stroke(width = strokePx, cap = StrokeCap.Butt)
+                        )
+                    } else {
+                        drawArc(
+                            color = trackOutlineColor,
+                            startAngle = startAngle,
+                            sweepAngle = sweepDegrees,
+                            useCenter = false,
+                            topLeft = arcTopLeft,
+                            size = arcSize,
+                            style = Stroke(width = strokePx, cap = StrokeCap.Butt)
+                        )
+                        val innerSweep = (sweepDegrees - 1.4f).coerceAtLeast(1f)
+                        val innerStart = startAngle + (sweepDegrees - innerSweep) / 2f
+                        drawArc(
+                            color = trackEmptyColor,
+                            startAngle = innerStart,
+                            sweepAngle = innerSweep,
+                            useCenter = false,
+                            topLeft = arcTopLeft,
+                            size = arcSize,
+                            style = Stroke(width = innerStrokePx, cap = StrokeCap.Butt)
+                        )
+                    }
                 }
             } else {
                 drawArc(
-                    color = ruleColor,
+                    color = trackOutlineColor,
                     startAngle = -90f,
                     sweepAngle = 360f,
                     useCenter = false,
@@ -747,10 +611,19 @@ private fun HeroProgressRing(
                     size = arcSize,
                     style = Stroke(width = strokePx, cap = StrokeCap.Butt)
                 )
+                drawArc(
+                    color = trackEmptyColor,
+                    startAngle = -90f,
+                    sweepAngle = 360f,
+                    useCenter = false,
+                    topLeft = arcTopLeft,
+                    size = arcSize,
+                    style = Stroke(width = innerStrokePx, cap = StrokeCap.Butt)
+                )
                 val filledSweep = 360f * displayedProgress
                 if (filledSweep > 0f) {
                     drawArc(
-                        color = presentColor,
+                        color = progressColor,
                         startAngle = -90f,
                         sweepAngle = filledSweep,
                         useCenter = false,
@@ -811,6 +684,16 @@ private fun HeroInfoColumn(
 ) {
     val streakText = "Streak: $weeklyStreak ${if (weeklyStreak == 1) "week" else "weeks"}"
     val streakActive = weeklyStreak > 0
+    val isDark = AppTheme.colors.isDark
+
+    val chipBackground = when {
+        isDark && streakActive -> AppTheme.colors.presentContainer
+        else -> AppTheme.colors.card
+    }
+    val chipBorder = BorderStroke(
+        width = 1.dp,
+        color = if (streakActive) AppTheme.colors.presentDeep else AppTheme.colors.rule
+    )
 
     Column(
         modifier = modifier,
@@ -835,19 +718,24 @@ private fun HeroInfoColumn(
         Surface(
             onClick = onStreakClick,
             shape = ChipShape,
-            color = if (streakActive) AppTheme.colors.presentContainer else AppTheme.colors.sheet,
-            border = BorderStroke(
-                width = 1.dp,
-                color = if (streakActive) AppTheme.colors.presentDeep else AppTheme.colors.rule
-            ),
+            color = chipBackground,
+            border = chipBorder,
             modifier = Modifier
                 .defaultMinSize(minHeight = 48.dp)
+                .then(if (!isDark) wfoCardShadow(elevation = 2.dp, shape = ChipShape) else Modifier)
                 .semantics { role = Role.Button }
         ) {
-            Box(
-                modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp),
-                contentAlignment = Alignment.Center
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
+                Icon(
+                    imageVector = Icons.Default.LocalFireDepartment,
+                    contentDescription = null,
+                    tint = AppTheme.colors.reward,
+                    modifier = Modifier.size(18.dp)
+                )
                 Text(
                     text = streakText,
                     style = MaterialTheme.typography.labelLarge,
@@ -1204,16 +1092,19 @@ fun DashboardThisWeek(
                 }
                 val markerDescription = "$fullDayName, $statusDescription"
 
+                val isDark = AppTheme.colors.isDark
                 val tileBackground = when {
                     isPresent -> AppTheme.colors.presentContainer
+                    !isDark -> AppTheme.colors.card
                     isShort || isLeave -> Color.Transparent
-                    else -> AppTheme.colors.raised
+                    else -> AppTheme.colors.card
                 }
 
                 val tileBorder = when {
                     isToday -> BorderStroke(2.dp, AppTheme.colors.presentDeep)
                     isShort -> BorderStroke(1.dp, AppTheme.colors.short)
                     isLeave -> BorderStroke(1.dp, AppTheme.colors.rule)
+                    isDark && !isPresent -> BorderStroke(1.dp, AppTheme.colors.rule)
                     else -> null
                 }
 
@@ -1242,6 +1133,7 @@ fun DashboardThisWeek(
                         modifier = Modifier
                             .fillMaxWidth()
                             .defaultMinSize(minHeight = 48.dp)
+                            .then(wfoCardShadow(elevation = 2.dp, shape = WeekTileShape))
                             .semantics {
                                 this.contentDescription = markerDescription
                             }
@@ -1302,12 +1194,7 @@ fun DashboardArrivalHistogram(
     val maxCount = arrivalBins.maxOfOrNull { it.count }?.coerceAtLeast(1) ?: 1
     val peakBin = arrivalBins.maxByOrNull { it.count }
 
-    Surface(
-        shape = SurfaceGroupShape,
-        color = AppTheme.colors.raised,
-        border = wfoCardBorder(),
-        modifier = modifier.fillMaxWidth()
-    ) {
+    WfoCard(modifier = modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(14.dp)
@@ -1372,7 +1259,7 @@ fun DashboardArrivalHistogram(
                                     .fillMaxWidth()
                                     .height(10.dp)
                                     .clip(CalendarCellShape)
-                                    .background(AppTheme.colors.ground)
+                                    .background(AppTheme.colors.trackEmpty)
                             ) {
                                 if (bin.count > 0) {
                                     Box(
@@ -1381,7 +1268,7 @@ fun DashboardArrivalHistogram(
                                             .fillMaxHeight()
                                             .clip(CalendarCellShape)
                                             .background(
-                                                if (isPeak) AppTheme.colors.present else AppTheme.colors.muted
+                                                if (isPeak) AppTheme.colors.progress else AppTheme.colors.muted
                                             )
                                     )
                                 }
@@ -1404,12 +1291,7 @@ fun DashboardWeeklyHoursTrend(
     val targetThreshold = weeklyTrends.firstOrNull()?.targetHours ?: 24.0
     val plotHeight = 100.dp
 
-    Surface(
-        shape = SurfaceGroupShape,
-        color = AppTheme.colors.raised,
-        border = wfoCardBorder(),
-        modifier = modifier.fillMaxWidth()
-    ) {
+    WfoCard(modifier = modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -1484,7 +1366,7 @@ fun DashboardWeeklyHoursTrend(
                                             .fillMaxWidth(0.5f)
                                             .fillMaxHeight(fraction)
                                             .clip(CalendarCellShape)
-                                            .background(if (isMet) AppTheme.colors.present else AppTheme.colors.short)
+                                            .background(if (isMet) AppTheme.colors.progress else AppTheme.colors.short)
                                     )
                                 }
                             }

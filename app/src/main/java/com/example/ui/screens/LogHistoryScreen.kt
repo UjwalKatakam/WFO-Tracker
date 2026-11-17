@@ -91,6 +91,7 @@ import com.example.ui.components.WfoTextButton
 import com.example.ui.components.sharePdfReport
 import com.example.ui.components.showNativeDatePicker
 import com.example.ui.theme.AppTheme
+import com.example.ui.theme.SurfaceGroupShape
 import com.example.ui.viewmodel.WfoUiState
 import com.example.ui.viewmodel.WfoViewModel
 import com.example.util.DateUtils
@@ -487,7 +488,7 @@ fun LogHistoryScreen(
                         Icon(
                             imageVector = Icons.Default.Search,
                             contentDescription = "Search logs",
-                            tint = if (isSearchActive) AppTheme.colors.present else AppTheme.colors.ink
+                            tint = if (isSearchActive) AppTheme.colors.presentDeep else AppTheme.colors.ink
                         )
                     }
 
@@ -496,8 +497,8 @@ fun LogHistoryScreen(
                         badge = {
                             if (activeFilterCount > 0) {
                                 Badge(
-                                    containerColor = AppTheme.colors.present,
-                                    contentColor = MaterialTheme.colorScheme.onPrimary
+                                    containerColor = AppTheme.colors.progress,
+                                    contentColor = AppTheme.colors.onAction
                                 ) {
                                     Text(
                                         text = "$activeFilterCount",
@@ -514,7 +515,7 @@ fun LogHistoryScreen(
                             Icon(
                                 imageVector = Icons.Default.FilterList,
                                 contentDescription = "Filter logs",
-                                tint = if (activeFilterCount > 0) AppTheme.colors.present else AppTheme.colors.ink
+                                tint = if (activeFilterCount > 0) AppTheme.colors.presentDeep else AppTheme.colors.ink
                             )
                         }
                     }
@@ -550,8 +551,8 @@ fun LogHistoryScreen(
                         DropdownMenu(
                             expanded = showOverflowMenu,
                             onDismissRequest = { showOverflowMenu = false },
-                            shape = RoundedCornerShape(12.dp),
-                            containerColor = MaterialTheme.colorScheme.surfaceContainer
+                            shape = SurfaceGroupShape,
+                            containerColor = AppTheme.colors.sheet
                         ) {
                             DropdownMenuItem(
                                 text = {
@@ -649,7 +650,7 @@ fun LogHistoryScreen(
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = AppTheme.colors.raised,
                         unfocusedContainerColor = AppTheme.colors.raised,
-                        focusedBorderColor = AppTheme.colors.present,
+                        focusedBorderColor = AppTheme.colors.presentDeep,
                         unfocusedBorderColor = AppTheme.colors.rule,
                         focusedTextColor = AppTheme.colors.ink,
                         unfocusedTextColor = AppTheme.colors.ink

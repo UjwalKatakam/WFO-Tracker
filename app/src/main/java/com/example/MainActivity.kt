@@ -6,6 +6,10 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
+import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
+import com.example.data.preferences.ThemeMode
 import com.example.ui.screens.MainAppScaffold
 import com.example.ui.theme.MyApplicationTheme
 import com.example.ui.viewmodel.WfoViewModel
@@ -19,7 +23,14 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         handleIntent(intent)
         setContent {
-            MyApplicationTheme {
+            val uiState by viewModel.uiState.collectAsState()
+            val systemDark = isSystemInDarkTheme()
+            val darkTheme = when (uiState.settings.themeMode) {
+                ThemeMode.LIGHT -> false
+                ThemeMode.DARK -> true
+                ThemeMode.SYSTEM -> systemDark
+            }
+            MyApplicationTheme(darkTheme = darkTheme) {
                 MainAppScaffold(viewModel = viewModel)
             }
         }

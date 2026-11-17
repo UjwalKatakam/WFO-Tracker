@@ -263,6 +263,12 @@ class WfoViewModel @JvmOverloads constructor(
         }
     }
 
+    fun setThemeMode(mode: com.example.data.preferences.ThemeMode) {
+        viewModelScope.launch {
+            repository.setThemeMode(mode)
+        }
+    }
+
     // Pull to Refresh
     fun pullToRefresh(context: Context) {
         viewModelScope.launch {

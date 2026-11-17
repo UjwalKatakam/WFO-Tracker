@@ -56,6 +56,7 @@ import com.example.data.local.CheckInLog
 import com.example.data.local.LeaveDefaults
 import com.example.data.local.LeaveHoliday
 import com.example.ui.theme.AppTheme
+import com.example.ui.theme.SurfaceGroupShape
 import com.example.util.DateUtils
 import java.util.Locale
 
@@ -122,8 +123,8 @@ fun ManualLogDialog(
     if (showDeleteConfirm) {
         AlertDialog(
             onDismissRequest = { showDeleteConfirm = false },
-            shape = RoundedCornerShape(12.dp),
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            shape = SurfaceGroupShape,
+            containerColor = AppTheme.colors.sheet,
             title = {
                 Text(
                     text = if (initialLog != null) "Delete attendance log?" else "Delete leave record?",
@@ -169,8 +170,8 @@ fun ManualLogDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(12.dp),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = SurfaceGroupShape,
+        containerColor = AppTheme.colors.sheet,
         title = {
             Text(
                 text = when {
@@ -360,11 +361,11 @@ fun ManualLogDialog(
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedContainerColor = AppTheme.colors.raised,
                                 unfocusedContainerColor = AppTheme.colors.raised,
-                                focusedBorderColor = AppTheme.colors.present,
+                                focusedBorderColor = AppTheme.colors.presentDeep,
                                 unfocusedBorderColor = AppTheme.colors.rule,
                                 focusedTextColor = AppTheme.colors.ink,
                                 unfocusedTextColor = AppTheme.colors.ink,
-                                focusedLabelColor = AppTheme.colors.present,
+                                focusedLabelColor = AppTheme.colors.presentDeep,
                                 unfocusedLabelColor = AppTheme.colors.muted
                             ),
                             shape = RoundedCornerShape(12.dp),
@@ -454,11 +455,11 @@ fun ManualLogDialog(
                             colors = OutlinedTextFieldDefaults.colors(
                                 focusedContainerColor = AppTheme.colors.raised,
                                 unfocusedContainerColor = AppTheme.colors.raised,
-                                focusedBorderColor = AppTheme.colors.present,
+                                focusedBorderColor = AppTheme.colors.presentDeep,
                                 unfocusedBorderColor = AppTheme.colors.rule,
                                 focusedTextColor = AppTheme.colors.ink,
                                 unfocusedTextColor = AppTheme.colors.ink,
-                                focusedLabelColor = AppTheme.colors.present,
+                                focusedLabelColor = AppTheme.colors.presentDeep,
                                 unfocusedLabelColor = AppTheme.colors.muted
                             ),
                             shape = RoundedCornerShape(12.dp),

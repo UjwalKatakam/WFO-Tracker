@@ -62,6 +62,7 @@ import com.example.util.DateUtils
 import com.example.util.HolidayImportCandidate
 import com.example.util.HolidayImportParser
 import com.example.ui.theme.AppTheme
+import com.example.ui.theme.SurfaceGroupShape
 import kotlinx.coroutines.delay
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -217,8 +218,8 @@ fun LeavesManagementDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        shape = RoundedCornerShape(12.dp),
-        containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+        shape = SurfaceGroupShape,
+        containerColor = AppTheme.colors.sheet,
         title = {
             Text(
                 text = "Leaves and exclusions",
@@ -330,13 +331,13 @@ fun LeavesManagementDialog(
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = AppTheme.colors.raised,
                         unfocusedContainerColor = AppTheme.colors.raised,
-                        focusedBorderColor = AppTheme.colors.present,
+                        focusedBorderColor = AppTheme.colors.presentDeep,
                         unfocusedBorderColor = AppTheme.colors.rule,
                         focusedTextColor = AppTheme.colors.ink,
                         unfocusedTextColor = AppTheme.colors.ink,
-                        focusedLabelColor = AppTheme.colors.present,
+                        focusedLabelColor = AppTheme.colors.presentDeep,
                         unfocusedLabelColor = AppTheme.colors.muted,
-                        cursorColor = AppTheme.colors.present
+                        cursorColor = AppTheme.colors.presentDeep
                     ),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -409,13 +410,13 @@ fun LeavesManagementDialog(
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedContainerColor = AppTheme.colors.raised,
                         unfocusedContainerColor = AppTheme.colors.raised,
-                        focusedBorderColor = AppTheme.colors.present,
+                        focusedBorderColor = AppTheme.colors.presentDeep,
                         unfocusedBorderColor = AppTheme.colors.rule,
                         focusedTextColor = AppTheme.colors.ink,
                         unfocusedTextColor = AppTheme.colors.ink,
-                        focusedLabelColor = AppTheme.colors.present,
+                        focusedLabelColor = AppTheme.colors.presentDeep,
                         unfocusedLabelColor = AppTheme.colors.muted,
-                        cursorColor = AppTheme.colors.present
+                        cursorColor = AppTheme.colors.presentDeep
                     ),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
@@ -467,9 +468,9 @@ fun LeavesManagementDialog(
                                 checked = isChecked,
                                 onCheckedChange = null,
                                 colors = CheckboxDefaults.colors(
-                                    checkedColor = AppTheme.colors.present,
+                                    checkedColor = AppTheme.colors.progress,
                                     uncheckedColor = AppTheme.colors.muted,
-                                    checkmarkColor = if (AppTheme.colors.isDark) AppTheme.colors.ground else AppTheme.colors.raised
+                                    checkmarkColor = AppTheme.colors.onAction
                                 )
                             )
                             Spacer(modifier = Modifier.width(8.dp))

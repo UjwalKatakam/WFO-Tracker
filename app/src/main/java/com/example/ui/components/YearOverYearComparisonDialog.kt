@@ -51,7 +51,8 @@ fun YearOverYearComparisonDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = AppTheme.colors.raised,
+        shape = SurfaceGroupShape,
+        containerColor = AppTheme.colors.sheet,
         titleContentColor = AppTheme.colors.ink,
         textContentColor = AppTheme.colors.ink,
         title = {
@@ -64,7 +65,7 @@ fun YearOverYearComparisonDialog(
                     Icon(
                         imageVector = Icons.Default.CompareArrows,
                         contentDescription = null,
-                        tint = AppTheme.colors.present,
+                        tint = AppTheme.colors.presentDeep,
                         modifier = Modifier.size(24.dp)
                     )
                     Spacer(modifier = Modifier.width(10.dp))
@@ -109,7 +110,7 @@ fun YearOverYearComparisonDialog(
                         Icon(
                             imageVector = Icons.Default.TrendingUp,
                             contentDescription = null,
-                            tint = AppTheme.colors.present,
+                            tint = AppTheme.colors.presentDeep,
                             modifier = Modifier.size(20.dp)
                         )
                         Spacer(modifier = Modifier.width(10.dp))
@@ -144,7 +145,7 @@ fun YearOverYearComparisonDialog(
                     Text(
                         text = "$currentYear",
                         style = MaterialTheme.typography.labelSmall,
-                        color = AppTheme.colors.present,
+                        color = AppTheme.colors.presentDeep,
                         fontWeight = FontWeight.SemiBold,
                         modifier = Modifier.weight(1f)
                     )
@@ -196,7 +197,7 @@ private fun MetricCompareRow(label: String, val1: String, val2: String) {
             text = val1,
             style = MaterialTheme.typography.bodyMedium,
             fontWeight = FontWeight.SemiBold,
-            color = AppTheme.colors.present,
+            color = AppTheme.colors.presentDeep,
             modifier = Modifier.weight(1f)
         )
         Text(

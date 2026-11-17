@@ -23,7 +23,6 @@ import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
@@ -43,11 +42,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -71,7 +73,40 @@ import com.example.ui.theme.SurfaceGroupShape
 
 @Composable
 fun wfoCardBorder(): BorderStroke? =
-    if (AppTheme.colors.isDark) null else BorderStroke(1.dp, AppTheme.colors.rule)
+    if (AppTheme.colors.isDark) BorderStroke(1.dp, AppTheme.colors.rule) else null
+
+@Composable
+fun wfoCardShadow(
+    elevation: Dp = 4.dp,
+    shape: Shape = SurfaceGroupShape
+): Modifier = if (AppTheme.colors.isDark || elevation <= 0.dp) {
+    Modifier
+} else {
+    Modifier.shadow(
+        elevation = elevation,
+        shape = shape,
+        clip = false,
+        ambientColor = AppTheme.colors.shadowInk.copy(alpha = 0.22f),
+        spotColor = AppTheme.colors.shadowInk.copy(alpha = 0.22f)
+    )
+}
+
+@Composable
+fun WfoCard(
+    modifier: Modifier = Modifier,
+    shape: Shape = SurfaceGroupShape,
+    elevation: Dp = 4.dp,
+    color: Color = AppTheme.colors.card,
+    content: @Composable () -> Unit
+) {
+    Surface(
+        shape = shape,
+        color = color,
+        border = wfoCardBorder(),
+        modifier = modifier.then(wfoCardShadow(elevation = elevation, shape = shape)),
+        content = content
+    )
+}
 
 // ============================================================================
 // 1. BUTTON SET: Primary, Tonal, Text
@@ -91,40 +126,63 @@ fun WfoPrimaryButton(
     isDanger: Boolean = false,
     iconSize: Dp = 18.dp
 ) {
-    val containerColor = if (isDanger) AppTheme.colors.danger else AppTheme.colors.present
-    val contentColor = if (isDanger) {
-        if (AppTheme.colors.isDark) AppTheme.colors.ground else AppTheme.colors.sheet
+    val isDark = AppTheme.colors.isDark
+    val contentColor = when {
+        !enabled -> AppTheme.colors.muted
+        isDanger -> if (isDark) AppTheme.colors.ground else AppTheme.colors.sheet
+        else -> AppTheme.colors.onAction
+    }
+    val shadowModifier = if (!isDark && enabled && !isDanger) {
+        Modifier.shadow(
+            elevation = 4.dp,
+            shape = ButtonShape,
+            clip = false,
+            ambientColor = AppTheme.colors.shadowInk.copy(alpha = 0.25f),
+            spotColor = AppTheme.colors.shadowInk.copy(alpha = 0.25f)
+        )
     } else {
-        AppTheme.colors.onPresent
+        Modifier
+    }
+    val bgModifier = when {
+        !enabled -> Modifier.background(AppTheme.colors.raised)
+        isDanger -> Modifier.background(AppTheme.colors.danger)
+        else -> Modifier.background(
+            Brush.verticalGradient(
+                colors = listOf(AppTheme.colors.actionStart, AppTheme.colors.actionEnd)
+            )
+        )
     }
 
-    Button(
+    Surface(
         onClick = onClick,
-        modifier = modifier.defaultMinSize(minHeight = 48.dp),
         enabled = enabled,
         shape = ButtonShape,
-        colors = ButtonDefaults.buttonColors(
-            containerColor = containerColor,
-            contentColor = contentColor,
-            disabledContainerColor = AppTheme.colors.raised,
-            disabledContentColor = AppTheme.colors.muted
-        ),
-        elevation = null,
-        contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp)
+        color = Color.Transparent,
+        contentColor = contentColor,
+        modifier = modifier
+            .defaultMinSize(minHeight = 48.dp)
+            .then(shadowModifier)
+            .semantics { role = Role.Button }
     ) {
-        if (icon != null) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                modifier = Modifier.size(iconSize)
+        Row(
+            modifier = bgModifier.padding(horizontal = 24.dp, vertical = 12.dp),
+            horizontalArrangement = Arrangement.Center,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            if (icon != null) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(iconSize)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+            }
+            Text(
+                text = text,
+                style = MaterialTheme.typography.titleSmall,
+                fontWeight = FontWeight.Medium
             )
-            Spacer(modifier = Modifier.width(8.dp))
         }
-        Text(
-            text = text,
-            style = MaterialTheme.typography.titleSmall,
-            fontWeight = FontWeight.Medium
-        )
     }
 }
 
@@ -309,6 +367,7 @@ fun WfoListRow(
     isDanger: Boolean = false,
     showDivider: Boolean = true,
     subtitleColor: Color = AppTheme.colors.muted,
+    horizontalPadding: Dp = 16.dp,
     modifier: Modifier = Modifier
 ) {
     val interactiveModifier = if (onClick != null) {
@@ -323,7 +382,7 @@ fun WfoListRow(
                 .fillMaxWidth()
                 .defaultMinSize(minHeight = 48.dp)
                 .then(interactiveModifier)
-                .padding(horizontal = 16.dp, vertical = 10.dp),
+                .padding(horizontal = horizontalPadding, vertical = 10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (leadingContent != null) {
@@ -377,7 +436,8 @@ fun WfoListRow(
 @Composable
 fun WfoSectionHeader(
     title: String,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    horizontalPadding: Dp = 16.dp
 ) {
     Text(
         text = title,
@@ -386,7 +446,7 @@ fun WfoSectionHeader(
         fontWeight = FontWeight.Medium,
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .padding(horizontal = horizontalPadding, vertical = 8.dp)
             .semantics { heading() }
     )
 }
@@ -620,11 +680,11 @@ fun WfoUndoBanner(
 ) {
     Surface(
         shape = SurfaceGroupShape,
-        color = AppTheme.colors.raised,
+        color = AppTheme.colors.card,
         border = wfoCardBorder(),
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 6.dp)
+            .then(wfoCardShadow(elevation = 4.dp, shape = SurfaceGroupShape))
             .semantics {
                 liveRegion = LiveRegionMode.Polite
             }

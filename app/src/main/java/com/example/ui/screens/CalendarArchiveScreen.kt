@@ -37,6 +37,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
@@ -52,7 +53,10 @@ import com.example.ui.components.MonthCalendarCard
 import com.example.ui.components.MonthNavigationHeader
 import com.example.ui.components.YearMatrixMonthCard
 import com.example.ui.components.YearOverYearComparisonDialog
+import com.example.ui.components.wfoCardBorder
+import com.example.ui.components.wfoCardShadow
 import com.example.ui.theme.AppTheme
+import com.example.ui.theme.SurfaceGroupShape
 import com.example.ui.viewmodel.WfoUiState
 import com.example.ui.viewmodel.WfoViewModel
 import com.example.util.DateUtils
@@ -106,8 +110,9 @@ fun CalendarArchiveScreen(
             // Segmented switch tabs
             Surface(
                 shape = CircleShape,
-                color = AppTheme.colors.raised,
-                border = BorderStroke(1.dp, AppTheme.colors.rule)
+                color = AppTheme.colors.card,
+                border = wfoCardBorder(),
+                modifier = wfoCardShadow(elevation = 2.dp, shape = CircleShape)
             ) {
                 Row(
                     modifier = Modifier.padding(3.dp),
@@ -118,8 +123,8 @@ fun CalendarArchiveScreen(
                         selected = isMonth,
                         onClick = { displayMode = CalendarDisplayMode.MONTH_VIEW },
                         shape = CircleShape,
-                        color = if (isMonth) AppTheme.colors.present.copy(alpha = if (AppTheme.colors.isDark) 0.2f else 0.14f) else AppTheme.colors.raised,
-                        border = if (isMonth) BorderStroke(1.dp, AppTheme.colors.present) else null,
+                        color = if (isMonth) AppTheme.colors.presentContainer else Color.Transparent,
+                        border = if (isMonth) BorderStroke(1.dp, AppTheme.colors.presentDeep) else null,
                         modifier = Modifier
                             .defaultMinSize(minHeight = 48.dp)
                             .heightIn(min = 48.dp)
@@ -132,7 +137,7 @@ fun CalendarArchiveScreen(
                             Text(
                                 text = "Month",
                                 style = MaterialTheme.typography.labelMedium,
-                                color = if (isMonth) AppTheme.colors.present else AppTheme.colors.muted,
+                                color = if (isMonth) AppTheme.colors.presentDeep else AppTheme.colors.muted,
                                 fontWeight = if (isMonth) FontWeight.SemiBold else FontWeight.Normal
                             )
                         }
@@ -143,8 +148,8 @@ fun CalendarArchiveScreen(
                         selected = isMatrix,
                         onClick = { displayMode = CalendarDisplayMode.YEAR_MATRIX },
                         shape = CircleShape,
-                        color = if (isMatrix) AppTheme.colors.present.copy(alpha = if (AppTheme.colors.isDark) 0.2f else 0.14f) else AppTheme.colors.raised,
-                        border = if (isMatrix) BorderStroke(1.dp, AppTheme.colors.present) else null,
+                        color = if (isMatrix) AppTheme.colors.presentContainer else Color.Transparent,
+                        border = if (isMatrix) BorderStroke(1.dp, AppTheme.colors.presentDeep) else null,
                         modifier = Modifier
                             .defaultMinSize(minHeight = 48.dp)
                             .heightIn(min = 48.dp)
@@ -157,7 +162,7 @@ fun CalendarArchiveScreen(
                             Text(
                                 text = "12-month matrix",
                                 style = MaterialTheme.typography.labelMedium,
-                                color = if (isMatrix) AppTheme.colors.present else AppTheme.colors.muted,
+                                color = if (isMatrix) AppTheme.colors.presentDeep else AppTheme.colors.muted,
                                 fontWeight = if (isMatrix) FontWeight.SemiBold else FontWeight.Normal
                             )
                         }
@@ -181,7 +186,8 @@ fun CalendarArchiveScreen(
                 DropdownMenu(
                     expanded = showOverflowMenu,
                     onDismissRequest = { showOverflowMenu = false },
-                    modifier = Modifier.background(AppTheme.colors.raised)
+                    shape = SurfaceGroupShape,
+                    containerColor = AppTheme.colors.sheet
                 ) {
                     DropdownMenuItem(
                         text = {

@@ -5,20 +5,28 @@ import android.os.Build
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.ScrollState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBars
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BatteryAlert
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.LocationOn
 import androidx.compose.material.icons.filled.Notifications
@@ -29,6 +37,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
+import androidx.compose.material3.pulltorefresh.PullToRefreshDefaults
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -36,9 +45,17 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
+import com.example.R
 import com.example.data.local.CheckInLog
 import com.example.data.local.LeaveHoliday
 import com.example.ui.components.ArrivedEarlierBottomSheet
@@ -50,6 +67,7 @@ import com.example.ui.components.DashboardPunchControl
 import com.example.ui.components.DashboardThisWeek
 import com.example.ui.components.DashboardWeeklyHoursTrend
 import com.example.ui.components.DateActionDialog
+import com.example.ui.components.GreetingTimeOfDay
 import com.example.ui.components.LeavesManagementDialog
 import com.example.ui.components.ManualLogDialog
 import com.example.ui.components.ManualLogTab
@@ -61,6 +79,8 @@ import com.example.ui.components.WfoSectionHeader
 import com.example.ui.components.WfoTextButton
 import com.example.ui.components.WfoUndoBanner
 import com.example.ui.theme.AppTheme
+import com.example.ui.theme.NightSceneInk
+import com.example.ui.theme.SurfaceGroupShape
 import com.example.ui.viewmodel.WfoUiState
 import com.example.ui.viewmodel.WfoViewModel
 import com.example.util.DateUtils
@@ -72,7 +92,9 @@ import java.util.Locale
 @Composable
 fun DashboardScreen(
     uiState: WfoUiState,
-    viewModel: WfoViewModel
+    viewModel: WfoViewModel,
+    scrollState: ScrollState = rememberScrollState(),
+    onNavigateToSettings: () -> Unit = {}
 ) {
     val context = LocalContext.current
     var showArrivedEarlierSheet by remember { mutableStateOf(false) }
@@ -144,6 +166,7 @@ fun DashboardScreen(
                     onClick = { viewModel.dismissArrivalPrompt() }
                 )
             },
+            shape = SurfaceGroupShape,
             containerColor = AppTheme.colors.sheet,
             textContentColor = AppTheme.colors.ink,
             titleContentColor = AppTheme.colors.ink
@@ -209,6 +232,7 @@ fun DashboardScreen(
                     onClick = { viewModel.dismissDeparturePrompt() }
                 )
             },
+            shape = SurfaceGroupShape,
             containerColor = AppTheme.colors.sheet,
             textContentColor = AppTheme.colors.ink,
             titleContentColor = AppTheme.colors.ink
@@ -255,6 +279,7 @@ fun DashboardScreen(
                     onClick = { viewModel.dismissBatteryOptimizationNudge() }
                 )
             },
+            shape = SurfaceGroupShape,
             containerColor = AppTheme.colors.sheet,
             textContentColor = AppTheme.colors.ink,
             titleContentColor = AppTheme.colors.ink
@@ -370,153 +395,241 @@ fun DashboardScreen(
         isRefreshing = uiState.isPullRefreshing,
         onRefresh = { viewModel.pullToRefresh(context) },
         state = pullRefreshState,
+        indicator = {
+            PullToRefreshDefaults.Indicator(
+                state = pullRefreshState,
+                isRefreshing = uiState.isPullRefreshing,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .windowInsetsPadding(WindowInsets.statusBars)
+            )
+        },
         modifier = Modifier
             .fillMaxSize()
             .background(AppTheme.colors.ground)
     ) {
+        val nowCal = remember(uiState.selectedCalendarDateKey, uiState.logs.size) {
+            Calendar.getInstance()
+        }
+        val currentHour = nowCal.get(Calendar.HOUR_OF_DAY)
+        val greetingTimeOfDay = remember(currentHour) {
+            DashboardCalculations.timeOfDay(currentHour)
+        }
+        val (greetingLine, firstName) = remember(uiState.settings.employeeName, currentHour) {
+            DashboardCalculations.greetingParts(
+                employeeName = uiState.settings.employeeName,
+                hourOfDay = currentHour
+            )
+        }
+
+        val isDark = AppTheme.colors.isDark
+        val sceneDrawableRes = when {
+            isDark -> R.drawable.wfo_header_landscape_night_1800x1000
+            greetingTimeOfDay == GreetingTimeOfDay.MORNING -> R.drawable.wfo_header_landscape_1800x1000
+            greetingTimeOfDay == GreetingTimeOfDay.AFTERNOON -> R.drawable.wfo_header_landscape_afternoon_1800x1000
+            else -> R.drawable.wfo_header_landscape_evening_1800x1000
+        }
+        val isEveningLightScene = !isDark && greetingTimeOfDay == GreetingTimeOfDay.EVENING
+        val greetingTextColor = when {
+            isDark -> NightSceneInk
+            isEveningLightScene -> Color.White
+            else -> AppTheme.colors.ink
+        }
+        val greetingLinkColor = if (isEveningLightScene) Color.White else AppTheme.colors.presentDeep
+        val heroOverlapPx = with(LocalDensity.current) { 32.dp.roundToPx() }
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(20.dp)
+                .verticalScroll(scrollState)
         ) {
-            // Persistent Undo Punch Out Banner
-            AnimatedVisibility(
-                visible = uiState.undoAvailable && uiState.undoMessage != null,
-                enter = fadeIn(),
-                exit = fadeOut()
-            ) {
-                WfoUndoBanner(
-                    message = uiState.undoMessage ?: "Session logged.",
-                    onUndoClick = { viewModel.executeUndoPunchOut(context) },
-                    onDismissClick = { viewModel.dismissUndo() }
+            // 0. FULL-WIDTH HEADER SCENE WITH GREETING
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Image(
+                    painter = painterResource(id = sceneDrawableRes),
+                    contentDescription = null,
+                    contentScale = ContentScale.FillWidth,
+                    alignment = Alignment.TopCenter,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1.8f)
                 )
-            }
 
-            // 0. GREETING ROW WITH SKYLINE
-            val nowCal = remember(uiState.selectedCalendarDateKey, uiState.logs.size) {
-                Calendar.getInstance()
-            }
-            val currentHour = nowCal.get(Calendar.HOUR_OF_DAY)
-            val greetingTimeOfDay = remember(currentHour) {
-                DashboardCalculations.timeOfDay(currentHour)
-            }
-            val (greetingLine, firstName) = remember(uiState.settings.employeeName, currentHour) {
-                DashboardCalculations.greetingParts(
-                    employeeName = uiState.settings.employeeName,
-                    hourOfDay = currentHour
-                )
-            }
-            DashboardGreeting(
-                greetingLine = greetingLine,
-                firstName = firstName,
-                timeOfDay = greetingTimeOfDay
-            )
-
-            // 1. HERO QUOTA RING COMPONENT
-            val monthNames = DateFormatSymbols.getInstance(Locale.US).months
-            val monthName = monthNames.getOrElse(uiState.dashboardNavMonth) { "This month" }
-            val monthKey = String.format(
-                Locale.US,
-                "%04d-%02d",
-                uiState.dashboardNavYear,
-                uiState.dashboardNavMonth + 1
-            )
-
-            val paceMessage = remember(
-                monthName,
-                uiState.validDaysThisMonth,
-                uiState.requiredDaysThisMonth,
-                uiState.settings.targetDaysPerWeek,
-                uiState.dashboardNavYear,
-                uiState.dashboardNavMonth,
-                uiState.logs,
-                uiState.settings.minHours
-            ) {
-                DashboardCalculations.computeHeroMessage(
-                    monthName = monthName,
-                    validDays = uiState.validDaysThisMonth,
-                    requiredDays = uiState.requiredDaysThisMonth,
-                    targetDaysPerWeek = uiState.settings.targetDaysPerWeek,
-                    navYear = uiState.dashboardNavYear,
-                    navMonth = uiState.dashboardNavMonth,
-                    logs = uiState.logs,
-                    minHours = uiState.settings.minHours
-                )
-            }
-
-            val isCurrentCalendarMonth = uiState.dashboardNavYear == nowCal.get(Calendar.YEAR) &&
-                uiState.dashboardNavMonth == nowCal.get(Calendar.MONTH)
-
-            DashboardHeroQuota(
-                monthName = monthName,
-                monthKey = monthKey,
-                isCurrentCalendarMonth = isCurrentCalendarMonth,
-                lastCelebratedMonthKey = uiState.settings.lastCelebratedMonthKey,
-                validDaysThisMonth = uiState.validDaysThisMonth,
-                requiredDaysThisMonth = uiState.requiredDaysThisMonth,
-                paceMessage = paceMessage,
-                weeklyStreak = uiState.weeklyStreak,
-                onStreakClick = { viewModel.openStreakBreakdown(true) },
-                onMonthCelebrated = { celebratedKey -> viewModel.markMonthCelebrated(celebratedKey) }
-            )
-
-            HorizontalDivider(color = AppTheme.colors.rule, thickness = 1.dp)
-
-            // 2. PUNCH CONTROL (Sitting directly on Ground without Surface container)
-            DashboardPunchControl(
-                isPunchedIn = uiState.isPunchedIn,
-                elapsedSeconds = uiState.elapsedSeconds,
-                minHours = uiState.settings.minHours,
-                targetReached = uiState.targetReached,
-                targetTimeFormatted = uiState.targetTimeFormatted,
-                onPunchInClick = {
-                    viewModel.requestPunchIn(context)
-                },
-                onPunchOutClick = { viewModel.requestPunchOut(context) },
-                onArrivedEarlierClick = { showArrivedEarlierSheet = true }
-            )
-
-            HorizontalDivider(color = AppTheme.colors.rule, thickness = 1.dp)
-
-            // 3. THIS WEEK (Sitting directly on Ground without Surface container)
-            DashboardThisWeek(
-                weekBreakdown = uiState.currentWeekBreakdown,
-                validDaysThisWeek = uiState.validDaysThisWeek,
-                targetDaysPerWeek = uiState.settings.targetDaysPerWeek,
-                todayDateKey = DateUtils.todayDateStr()
-            )
-
-            HorizontalDivider(color = AppTheme.colors.rule, thickness = 1.dp)
-
-            // 4. EXCLUSIONS ROW
-            WfoListRow(
-                title = "Exclusions",
-                subtitle = "${uiState.currentMonthLeaves.size} days",
-                trailingContent = {
-                    Icon(
-                        imageVector = Icons.Default.ChevronRight,
-                        contentDescription = null,
-                        tint = AppTheme.colors.muted
+                if (isEveningLightScene) {
+                    Box(
+                        modifier = Modifier
+                            .matchParentSize()
+                            .background(
+                                Brush.horizontalGradient(
+                                    colorStops = arrayOf(
+                                        0.0f to Color.Black.copy(alpha = 0.48f),
+                                        0.45f to Color.Black.copy(alpha = 0.42f),
+                                        0.78f to Color.Transparent
+                                    )
+                                )
+                            )
                     )
-                },
-                onClick = { showLeavesDialog = true },
-                showDivider = false
-            )
+                }
 
-            // 5. INSIGHTS
-            WfoSectionHeader(title = "Insights")
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .windowInsetsPadding(WindowInsets.statusBars)
+                        .padding(top = 64.dp, start = 16.dp, end = 16.dp, bottom = 44.dp)
+                ) {
+                    DashboardGreeting(
+                        greetingLine = greetingLine,
+                        firstName = firstName,
+                        textColor = greetingTextColor,
+                        linkColor = greetingLinkColor,
+                        onAddNameClick = onNavigateToSettings
+                    )
+                }
+            }
 
-            DashboardArrivalHistogram(
-                arrivalBins = uiState.arrivalBins
-            )
+            // MAIN DASHBOARD CONTENT
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(20.dp)
+            ) {
+                // 1. HERO QUOTA RING COMPONENT (overlaps bottom of scene by ~32dp)
+                val monthNames = DateFormatSymbols.getInstance(Locale.US).months
+                val monthName = monthNames.getOrElse(uiState.dashboardNavMonth) { "This month" }
+                val monthKey = String.format(
+                    Locale.US,
+                    "%04d-%02d",
+                    uiState.dashboardNavYear,
+                    uiState.dashboardNavMonth + 1
+                )
 
-            DashboardWeeklyHoursTrend(
-                weeklyTrends = uiState.weeklyTrends
-            )
+                val paceMessage = remember(
+                    monthName,
+                    uiState.validDaysThisMonth,
+                    uiState.requiredDaysThisMonth,
+                    uiState.settings.targetDaysPerWeek,
+                    uiState.dashboardNavYear,
+                    uiState.dashboardNavMonth,
+                    uiState.logs,
+                    uiState.settings.minHours
+                ) {
+                    DashboardCalculations.computeHeroMessage(
+                        monthName = monthName,
+                        validDays = uiState.validDaysThisMonth,
+                        requiredDays = uiState.requiredDaysThisMonth,
+                        targetDaysPerWeek = uiState.settings.targetDaysPerWeek,
+                        navYear = uiState.dashboardNavYear,
+                        navMonth = uiState.dashboardNavMonth,
+                        logs = uiState.logs,
+                        minHours = uiState.settings.minHours
+                    )
+                }
 
-            Spacer(modifier = Modifier.height(16.dp))
+                val isCurrentCalendarMonth = uiState.dashboardNavYear == nowCal.get(Calendar.YEAR) &&
+                    uiState.dashboardNavMonth == nowCal.get(Calendar.MONTH)
+
+                DashboardHeroQuota(
+                    monthName = monthName,
+                    monthKey = monthKey,
+                    isCurrentCalendarMonth = isCurrentCalendarMonth,
+                    lastCelebratedMonthKey = uiState.settings.lastCelebratedMonthKey,
+                    validDaysThisMonth = uiState.validDaysThisMonth,
+                    requiredDaysThisMonth = uiState.requiredDaysThisMonth,
+                    paceMessage = paceMessage,
+                    weeklyStreak = uiState.weeklyStreak,
+                    onStreakClick = { viewModel.openStreakBreakdown(true) },
+                    onMonthCelebrated = { celebratedKey -> viewModel.markMonthCelebrated(celebratedKey) },
+                    modifier = Modifier.layout { measurable, constraints ->
+                        val placeable = measurable.measure(constraints)
+                        val reportedHeight = (placeable.height - heroOverlapPx).coerceAtLeast(0)
+                        layout(placeable.width, reportedHeight) {
+                            placeable.placeRelative(0, -heroOverlapPx)
+                        }
+                    }
+                )
+
+                // Persistent Undo Punch Out Banner
+                AnimatedVisibility(
+                    visible = uiState.undoAvailable && uiState.undoMessage != null,
+                    enter = fadeIn(),
+                    exit = fadeOut()
+                ) {
+                    WfoUndoBanner(
+                        message = uiState.undoMessage ?: "Session logged.",
+                        onUndoClick = { viewModel.executeUndoPunchOut(context) },
+                        onDismissClick = { viewModel.dismissUndo() }
+                    )
+                }
+
+                HorizontalDivider(color = AppTheme.colors.rule, thickness = 1.dp)
+
+                // 2. PUNCH CONTROL (Sitting directly on Ground without Surface container)
+                DashboardPunchControl(
+                    isPunchedIn = uiState.isPunchedIn,
+                    elapsedSeconds = uiState.elapsedSeconds,
+                    minHours = uiState.settings.minHours,
+                    targetReached = uiState.targetReached,
+                    targetTimeFormatted = uiState.targetTimeFormatted,
+                    onPunchInClick = {
+                        viewModel.requestPunchIn(context)
+                    },
+                    onPunchOutClick = { viewModel.requestPunchOut(context) },
+                    onArrivedEarlierClick = { showArrivedEarlierSheet = true }
+                )
+
+                HorizontalDivider(color = AppTheme.colors.rule, thickness = 1.dp)
+
+                // 3. THIS WEEK (Sitting directly on Ground without Surface container)
+                DashboardThisWeek(
+                    weekBreakdown = uiState.currentWeekBreakdown,
+                    validDaysThisWeek = uiState.validDaysThisWeek,
+                    targetDaysPerWeek = uiState.settings.targetDaysPerWeek,
+                    todayDateKey = DateUtils.todayDateStr()
+                )
+
+                HorizontalDivider(color = AppTheme.colors.rule, thickness = 1.dp)
+
+                // 4. EXCLUSIONS ROW
+                WfoListRow(
+                    title = "Exclusions",
+                    subtitle = "${uiState.currentMonthLeaves.size} days",
+                    leadingContent = {
+                        Icon(
+                            imageVector = Icons.Default.CalendarMonth,
+                            contentDescription = null,
+                            tint = AppTheme.colors.presentDeep,
+                            modifier = Modifier.size(22.dp)
+                        )
+                    },
+                    trailingContent = {
+                        Icon(
+                            imageVector = Icons.Default.ChevronRight,
+                            contentDescription = null,
+                            tint = AppTheme.colors.muted
+                        )
+                    },
+                    onClick = { showLeavesDialog = true },
+                    showDivider = false,
+                    horizontalPadding = 0.dp
+                )
+
+                // 5. INSIGHTS
+                WfoSectionHeader(
+                    title = "Insights",
+                    horizontalPadding = 0.dp
+                )
+
+                DashboardArrivalHistogram(
+                    arrivalBins = uiState.arrivalBins
+                )
+
+                DashboardWeeklyHoursTrend(
+                    weeklyTrends = uiState.weeklyTrends
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+            }
         }
     }
 }

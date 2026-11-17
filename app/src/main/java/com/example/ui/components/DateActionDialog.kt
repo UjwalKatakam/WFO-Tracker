@@ -56,7 +56,8 @@ fun DateActionDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = AppTheme.colors.raised,
+        shape = SurfaceGroupShape,
+        containerColor = AppTheme.colors.sheet,
         titleContentColor = AppTheme.colors.ink,
         textContentColor = AppTheme.colors.ink,
         title = {
@@ -125,7 +126,7 @@ fun DateActionDialog(
                                     text = "${DateUtils.formatTime12(log.inTime)} – ${DateUtils.formatTime12(log.outTime)} (${log.formattedDuration})",
                                     style = MaterialTheme.typography.bodyLarge,
                                     fontWeight = FontWeight.Medium,
-                                    color = if (isValid) AppTheme.colors.present else AppTheme.colors.short
+                                    color = if (isValid) AppTheme.colors.presentDeep else AppTheme.colors.short
                                 )
                                 Spacer(modifier = Modifier.height(2.dp))
                                 Text(

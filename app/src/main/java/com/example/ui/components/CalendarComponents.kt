@@ -126,9 +126,10 @@ fun MonthNavigationHeader(
 
         Surface(
             shape = CircleShape,
-            color = AppTheme.colors.raised,
-            border = BorderStroke(1.dp, AppTheme.colors.rule),
+            color = AppTheme.colors.card,
+            border = wfoCardBorder(),
             modifier = Modifier
+                .then(wfoCardShadow(elevation = 2.dp, shape = CircleShape))
                 .clickable { showPickerModal = true }
                 .semantics { role = Role.Button }
         ) {
@@ -160,7 +161,7 @@ fun MonthNavigationHeader(
                 Icon(
                     imageVector = Icons.Default.Today,
                     contentDescription = "Jump to today",
-                    tint = AppTheme.colors.present
+                    tint = AppTheme.colors.presentDeep
                 )
             }
 
@@ -212,7 +213,8 @@ fun MonthYearPickerDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = AppTheme.colors.raised,
+        shape = SurfaceGroupShape,
+        containerColor = AppTheme.colors.sheet,
         titleContentColor = AppTheme.colors.ink,
         textContentColor = AppTheme.colors.ink,
         title = {
@@ -292,13 +294,13 @@ fun MonthYearPickerDialog(
                             onClick = { pickerMonth = index },
                             shape = CircleShape,
                             color = if (isSelected) {
-                                AppTheme.colors.present.copy(alpha = if (AppTheme.colors.isDark) 0.2f else 0.14f)
+                                AppTheme.colors.presentContainer
                             } else {
                                 AppTheme.colors.ground
                             },
                             border = BorderStroke(
                                 1.dp,
-                                if (isSelected) AppTheme.colors.present else AppTheme.colors.rule
+                                if (isSelected) AppTheme.colors.presentDeep else AppTheme.colors.rule
                             ),
                             modifier = Modifier.height(44.dp)
                         ) {
@@ -306,7 +308,7 @@ fun MonthYearPickerDialog(
                                 Text(
                                     text = monthNames[index].take(3),
                                     style = MaterialTheme.typography.labelLarge,
-                                    color = if (isSelected) AppTheme.colors.present else AppTheme.colors.ink,
+                                    color = if (isSelected) AppTheme.colors.presentDeep else AppTheme.colors.ink,
                                     fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal
                                 )
                             }
@@ -380,10 +382,7 @@ fun MonthCalendarCard(
     val totalDaysInMonth = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
     val todayDateStr = remember { DateUtils.todayDateStr() }
 
-    Surface(
-        shape = SurfaceGroupShape,
-        color = AppTheme.colors.raised,
-        border = BorderStroke(1.dp, AppTheme.colors.rule),
+    WfoCard(
         modifier = modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
@@ -413,7 +412,7 @@ fun MonthCalendarCard(
                     Text(
                         text = header,
                         style = MaterialTheme.typography.labelSmall,
-                        color = if (isQuotaCol) AppTheme.colors.present else AppTheme.colors.muted,
+                        color = if (isQuotaCol) AppTheme.colors.presentDeep else AppTheme.colors.muted,
                         fontWeight = if (isQuotaCol) FontWeight.SemiBold else FontWeight.Medium,
                         textAlign = TextAlign.Center,
                         modifier = Modifier.weight(1f)
@@ -478,7 +477,7 @@ fun MonthCalendarCard(
                             }
 
                             val borderModifier = when {
-                                isSelected -> Modifier.border(2.dp, AppTheme.colors.present, CalendarCellShape)
+                                isSelected -> Modifier.border(2.dp, AppTheme.colors.presentDeep, CalendarCellShape)
                                 isToday -> Modifier.border(2.dp, AppTheme.colors.ink, CalendarCellShape)
                                 isValidWfo -> Modifier.border(1.dp, AppTheme.colors.present.copy(alpha = 0.45f), CalendarCellShape)
                                 isShortWfo -> Modifier.border(1.dp, AppTheme.colors.short.copy(alpha = 0.5f), CalendarCellShape)
@@ -553,7 +552,7 @@ fun MonthCalendarCard(
                                         fontWeight = if (isValidWfo || isSelected || isToday) FontWeight.SemiBold else FontWeight.Normal,
                                         color = when {
                                             isWeekend -> AppTheme.colors.muted.copy(alpha = 0.5f)
-                                            isValidWfo -> AppTheme.colors.present
+                                            isValidWfo -> AppTheme.colors.presentDeep
                                             isShortWfo -> AppTheme.colors.short
                                             isLeaveOrHoliday -> AppTheme.colors.ink
                                             else -> AppTheme.colors.ink
@@ -585,7 +584,7 @@ fun MonthCalendarCard(
                                         Text(
                                             text = formatCompactDuration(log.totalHours),
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = if (isValidWfo) AppTheme.colors.present else AppTheme.colors.short,
+                                            color = if (isValidWfo) AppTheme.colors.presentDeep else AppTheme.colors.short,
                                             fontWeight = FontWeight.Medium,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
@@ -632,7 +631,7 @@ fun MonthCalendarCard(
                         Text(
                             text = "$weekWfoCount/$targetDaysPerWeek",
                             style = MaterialTheme.typography.labelMedium,
-                            color = if (isQuotaMet) AppTheme.colors.present else AppTheme.colors.muted,
+                            color = if (isQuotaMet) AppTheme.colors.presentDeep else AppTheme.colors.muted,
                             fontWeight = if (isQuotaMet) FontWeight.SemiBold else FontWeight.Normal
                         )
                     }
@@ -716,10 +715,7 @@ fun YearMatrixMonthCard(
     val offsetDays = if (firstDayOfWeek == Calendar.SUNDAY) 6 else firstDayOfWeek - 2
     val totalDaysInMonth = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
 
-    Surface(
-        shape = SurfaceGroupShape,
-        color = AppTheme.colors.raised,
-        border = BorderStroke(1.dp, AppTheme.colors.rule),
+    WfoCard(
         modifier = modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
@@ -744,7 +740,7 @@ fun YearMatrixMonthCard(
                         Text(
                             text = "$validDaysCount office days",
                             style = MaterialTheme.typography.labelSmall,
-                            color = AppTheme.colors.present,
+                            color = AppTheme.colors.presentDeep,
                             fontWeight = FontWeight.Medium
                         )
                         if (leaveDaysCount > 0) {
@@ -816,7 +812,7 @@ fun YearMatrixMonthCard(
                             }
 
                             val borderModifier = when {
-                                isSelected -> Modifier.border(1.5.dp, AppTheme.colors.present, CalendarCellShape)
+                                isSelected -> Modifier.border(1.5.dp, AppTheme.colors.presentDeep, CalendarCellShape)
                                 isValidWfo -> Modifier.border(1.dp, AppTheme.colors.present.copy(alpha = 0.35f), CalendarCellShape)
                                 isShortWfo -> Modifier.border(1.dp, AppTheme.colors.short.copy(alpha = 0.35f), CalendarCellShape)
                                 leave != null -> Modifier.border(1.dp, AppTheme.colors.rule, CalendarCellShape)
@@ -899,7 +895,7 @@ fun YearMatrixMonthCard(
                                         text = "$dayNumber",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = when {
-                                            isValidWfo -> AppTheme.colors.present
+                                            isValidWfo -> AppTheme.colors.presentDeep
                                             isShortWfo -> AppTheme.colors.short
                                             isWeekend -> AppTheme.colors.muted.copy(alpha = 0.5f)
                                             else -> AppTheme.colors.ink
@@ -948,10 +944,7 @@ fun DailyStatusTimelineCard(
     }
     val isToday = dateKey == DateUtils.todayDateStr()
 
-    Surface(
-        shape = SurfaceGroupShape,
-        color = AppTheme.colors.raised,
-        border = BorderStroke(1.dp, AppTheme.colors.rule),
+    WfoCard(
         modifier = modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
@@ -1096,7 +1089,7 @@ private fun CalendarTimelineRow(
 ) {
     val indicatorColor = when {
         !isCompleted -> AppTheme.colors.rule
-        isSuccess -> AppTheme.colors.present
+        isSuccess -> AppTheme.colors.presentDeep
         else -> AppTheme.colors.short
     }
 

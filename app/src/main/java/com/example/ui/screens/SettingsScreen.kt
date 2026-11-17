@@ -4,11 +4,14 @@ import android.location.Location
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -38,6 +41,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -47,9 +51,12 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.password
+import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -57,6 +64,7 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import com.example.data.preferences.ThemeMode
 import com.example.ui.components.ReportMonthPickerSheet
 import com.example.ui.components.WfoBottomSheet
 import com.example.ui.components.WfoListRow
@@ -66,7 +74,10 @@ import com.example.ui.components.WfoSwitchRow
 import com.example.ui.components.WfoTextButton
 import com.example.ui.components.WfoTonalButton
 import com.example.ui.components.sharePdfReport
+import com.example.ui.components.wfoCardBorder
+import com.example.ui.components.wfoCardShadow
 import com.example.ui.theme.AppTheme
+import com.example.ui.theme.SurfaceGroupShape
 import com.example.ui.viewmodel.WfoUiState
 import com.example.ui.viewmodel.WfoViewModel
 import com.example.util.DateUtils
@@ -133,8 +144,8 @@ fun SettingsScreen(
     if (showClearDataDialog) {
         AlertDialog(
             onDismissRequest = { showClearDataDialog = false },
-            shape = RoundedCornerShape(12.dp),
-            containerColor = MaterialTheme.colorScheme.surfaceContainerHigh,
+            shape = SurfaceGroupShape,
+            containerColor = AppTheme.colors.sheet,
             title = {
                 Text(
                     text = "Clear local data?",
@@ -248,13 +259,71 @@ fun SettingsScreen(
             .padding(vertical = 12.dp)
     ) {
         // --------------------------------------------------------------------
+        // 0. Appearance Section
+        // --------------------------------------------------------------------
+        WfoSectionHeader(title = "Appearance")
+
+        Surface(
+            shape = SurfaceGroupShape,
+            color = AppTheme.colors.card,
+            border = wfoCardBorder(),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+                .then(wfoCardShadow(elevation = 2.dp, shape = SurfaceGroupShape))
+        ) {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                val modes = listOf(
+                    ThemeMode.LIGHT to "Light",
+                    ThemeMode.DARK to "Dark",
+                    ThemeMode.SYSTEM to "System"
+                )
+                modes.forEach { (mode, label) ->
+                    val selected = uiState.settings.themeMode == mode
+                    Surface(
+                        selected = selected,
+                        onClick = { viewModel.setThemeMode(mode) },
+                        shape = RoundedCornerShape(16.dp),
+                        color = if (selected) AppTheme.colors.presentContainer else Color.Transparent,
+                        border = if (selected) BorderStroke(1.dp, AppTheme.colors.presentDeep) else null,
+                        modifier = Modifier
+                            .weight(1f)
+                            .defaultMinSize(minHeight = 48.dp)
+                            .semantics { role = Role.Tab }
+                    ) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 10.dp)
+                        ) {
+                            Text(
+                                text = label,
+                                style = MaterialTheme.typography.labelLarge,
+                                color = if (selected) AppTheme.colors.presentDeep else AppTheme.colors.muted,
+                                fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
+                            )
+                        }
+                    }
+                }
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // --------------------------------------------------------------------
         // 1. Attendance Policy Section
         // --------------------------------------------------------------------
         WfoSectionHeader(title = "Attendance policy")
 
         WfoListRow(
             title = "Name",
-            subtitle = uiState.settings.employeeName.ifBlank { "Not configured" },
+            subtitle = uiState.settings.employeeName.takeUnless {
+                it.isBlank() || it.equals("Employee", ignoreCase = true)
+            } ?: "Not configured",
             trailingContent = {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,
@@ -559,7 +628,11 @@ private fun EditPolicySheet(
 ) {
     val focusManager = LocalFocusManager.current
 
-    var name by remember { mutableStateOf(settings.employeeName) }
+    var name by remember {
+        mutableStateOf(
+            if (settings.employeeName.equals("Employee", ignoreCase = true)) "" else settings.employeeName
+        )
+    }
     var minHoursStr by remember { mutableStateOf(settings.minHours.toString()) }
     var targetDaysStr by remember { mutableStateOf(settings.targetDaysPerWeek.toString()) }
     var shiftStart by remember { mutableStateOf(settings.shiftStart) }
@@ -578,6 +651,7 @@ private fun EditPolicySheet(
                 value = name,
                 onValueChange = { name = it },
                 label = { Text("Name", style = MaterialTheme.typography.bodySmall) },
+                placeholder = { Text("Your name") },
                 singleLine = true,
                 colors = textFieldColors(),
                 shape = RoundedCornerShape(12.dp),
@@ -913,12 +987,12 @@ private fun EditGistIdSheet(
 
 @Composable
 private fun textFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedContainerColor = AppTheme.colors.raised,
-    unfocusedContainerColor = AppTheme.colors.raised,
-    focusedBorderColor = AppTheme.colors.present,
+    focusedContainerColor = AppTheme.colors.sheet,
+    unfocusedContainerColor = AppTheme.colors.sheet,
+    focusedBorderColor = AppTheme.colors.presentDeep,
     unfocusedBorderColor = AppTheme.colors.rule,
     focusedTextColor = AppTheme.colors.ink,
     unfocusedTextColor = AppTheme.colors.ink,
-    focusedLabelColor = AppTheme.colors.present,
+    focusedLabelColor = AppTheme.colors.presentDeep,
     unfocusedLabelColor = AppTheme.colors.muted
 )

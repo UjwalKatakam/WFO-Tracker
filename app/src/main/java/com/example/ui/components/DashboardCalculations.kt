@@ -17,9 +17,9 @@ enum class GreetingTimeOfDay {
 object DashboardCalculations {
 
     fun timeOfDay(hourOfDay: Int): GreetingTimeOfDay {
-        return when {
-            hourOfDay < 12 -> GreetingTimeOfDay.MORNING
-            hourOfDay <= 17 -> GreetingTimeOfDay.AFTERNOON
+        return when (hourOfDay) {
+            in 5..11 -> GreetingTimeOfDay.MORNING
+            in 12..16 -> GreetingTimeOfDay.AFTERNOON
             else -> GreetingTimeOfDay.EVENING
         }
     }
@@ -30,11 +30,12 @@ object DashboardCalculations {
             GreetingTimeOfDay.AFTERNOON -> "Good afternoon"
             GreetingTimeOfDay.EVENING -> "Good evening"
         }
-        val firstName = employeeName
-            .trim()
-            .split(Regex("\\s+"))
-            .firstOrNull()
-            ?.takeIf { it.isNotEmpty() }
+        val trimmed = employeeName.trim()
+        val firstName = if (trimmed.isEmpty() || trimmed.equals("Employee", ignoreCase = true)) {
+            null
+        } else {
+            trimmed.split(Regex("\\s+")).firstOrNull()?.takeIf { it.isNotEmpty() }
+        }
         return if (firstName == null) {
             salutation to null
         } else {
@@ -84,13 +85,19 @@ object DashboardCalculations {
             excludeToday = todayLoggedValid
         )
 
+        if (remainingDays > remainingWeekdays) {
+            val workingDayWord = if (remainingWeekdays == 1) "working day" else "working days"
+            return DashboardHeroMessage(
+                text = "$remainingWeekdays $workingDayWord left this month.",
+                isPaceWarning = false
+            )
+        }
+
         val remainingWeeks = if (remainingWeekdays > 0) (remainingWeekdays + 4) / 5 else 0
         val policyCapacity = remainingWeeks * maxOf(1, targetDaysPerWeek)
-        val cannotFitAtPace = remainingWeeks == 0 ||
-            remainingDays > policyCapacity ||
-            remainingDays > remainingWeekdays
+        val underPaceButPossible = remainingWeeks == 0 || remainingDays > policyCapacity
 
-        if (cannotFitAtPace) {
+        if (underPaceButPossible) {
             val text = if (remainingWeeks > 0) {
                 val weekPhrase = if (remainingWeeks == 1) "1 week" else "$remainingWeeks weeks"
                 "$remPhrase in $weekPhrase. Every office day counts."

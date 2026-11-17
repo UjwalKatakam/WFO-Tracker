@@ -316,6 +316,10 @@ class WfoRepository(
         preferences.setLastCelebratedMonthKey(monthKey)
     }
 
+    suspend fun setThemeMode(mode: com.example.data.preferences.ThemeMode) {
+        preferences.setThemeMode(mode)
+    }
+
     // Cloud Backup & GitHub Gist Sync
     suspend fun pushToGist(): Result<String> = withContext(Dispatchers.IO) {
         try {

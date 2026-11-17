@@ -19,6 +19,12 @@ import kotlinx.coroutines.launch
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "wfo_settings")
 
+enum class ThemeMode {
+    LIGHT,
+    DARK,
+    SYSTEM
+}
+
 data class WfoSettings(
     val minHours: Double = 8.0,
     val targetDaysPerWeek: Int = 3,
@@ -41,7 +47,8 @@ data class WfoSettings(
     val batteryOptNudgeDismissed: Boolean = false,
     val persistentUndoSummary: String? = null,
     val tokenUnreadable: Boolean = false,
-    val lastCelebratedMonthKey: String = ""
+    val lastCelebratedMonthKey: String = "",
+    val themeMode: ThemeMode = ThemeMode.LIGHT
 )
 
 class WfoPreferences(
@@ -73,6 +80,7 @@ class WfoPreferences(
         val BATTERY_OPT_DISMISSED = booleanPreferencesKey("battery_opt_dismissed")
         val PERSISTENT_UNDO_SUMMARY = stringPreferencesKey("persistent_undo_summary")
         val LAST_CELEBRATED_MONTH_KEY = stringPreferencesKey("last_celebrated_month_key")
+        val THEME_MODE = stringPreferencesKey("theme_mode")
     }
 
     init {
@@ -147,7 +155,10 @@ class WfoPreferences(
             batteryOptNudgeDismissed = prefs[Keys.BATTERY_OPT_DISMISSED] ?: false,
             persistentUndoSummary = prefs[Keys.PERSISTENT_UNDO_SUMMARY],
             tokenUnreadable = tokenUnreadable,
-            lastCelebratedMonthKey = prefs[Keys.LAST_CELEBRATED_MONTH_KEY] ?: ""
+            lastCelebratedMonthKey = prefs[Keys.LAST_CELEBRATED_MONTH_KEY] ?: "",
+            themeMode = prefs[Keys.THEME_MODE]?.let { raw ->
+                ThemeMode.entries.firstOrNull { it.name == raw }
+            } ?: ThemeMode.LIGHT
         )
     }
 
@@ -235,6 +246,12 @@ class WfoPreferences(
     suspend fun setLastCelebratedMonthKey(monthKey: String) {
         context.dataStore.edit { prefs ->
             prefs[Keys.LAST_CELEBRATED_MONTH_KEY] = monthKey
+        }
+    }
+
+    suspend fun setThemeMode(mode: ThemeMode) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.THEME_MODE] = mode.name
         }
     }
 }

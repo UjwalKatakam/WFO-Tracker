@@ -1,6 +1,5 @@
 package com.example.ui.theme
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -14,6 +13,7 @@ private val DarkAppColors = AppColors(
     ground = DarkGround,
     raised = DarkRaised,
     sheet = DarkSheet,
+    card = DarkCard,
     rule = DarkRule,
     ink = DarkInk,
     muted = DarkMuted,
@@ -21,9 +21,16 @@ private val DarkAppColors = AppColors(
     presentDeep = DarkPresentDeep,
     onPresent = DarkOnPresent,
     presentContainer = DarkPresentContainer,
+    progress = DarkProgress,
+    actionStart = DarkActionStart,
+    actionEnd = DarkActionEnd,
+    onAction = DarkOnAction,
+    trackEmpty = DarkTrackEmpty,
+    trackOutline = DarkTrackOutline,
     short = DarkShort,
     danger = DarkDanger,
     reward = DarkReward,
+    shadowInk = Color.Transparent,
     isDark = true
 )
 
@@ -31,6 +38,7 @@ private val LightAppColors = AppColors(
     ground = LightGround,
     raised = LightRaised,
     sheet = LightSheet,
+    card = LightCard,
     rule = LightRule,
     ink = LightInk,
     muted = LightMuted,
@@ -38,13 +46,20 @@ private val LightAppColors = AppColors(
     presentDeep = LightPresentDeep,
     onPresent = LightOnPresent,
     presentContainer = LightPresentContainer,
+    progress = LightProgress,
+    actionStart = LightActionStart,
+    actionEnd = LightActionEnd,
+    onAction = LightOnAction,
+    trackEmpty = LightTrackEmpty,
+    trackOutline = LightTrackOutline,
     short = LightShort,
     danger = LightDanger,
     reward = LightReward,
+    shadowInk = LightInk,
     isDark = false
 )
 
-val LocalAppColors = staticCompositionLocalOf { DarkAppColors }
+val LocalAppColors = staticCompositionLocalOf { LightAppColors }
 
 object AppTheme {
     val colors: AppColors
@@ -117,7 +132,7 @@ private val LightColorScheme = lightColorScheme(
     surfaceBright = LightSheet,
     surfaceContainerLowest = LightSheet,
     surfaceContainerLow = LightGround,
-    surfaceContainer = LightRaised,
+    surfaceContainer = LightCard,
     surfaceContainerHigh = LightSheet,
     surfaceContainerHighest = LightSheet,
     inverseSurface = LightInk,
@@ -133,11 +148,11 @@ private val LightColorScheme = lightColorScheme(
 
 /**
  * WFO Tracker Theme
- * Defaults to dark theme unless the system is in light mode.
+ * Light-first by default; obeys ThemeMode preference when supplied.
  */
 @Composable
 fun MyApplicationTheme(
-    darkTheme: Boolean = isSystemInDarkTheme(),
+    darkTheme: Boolean = false,
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
