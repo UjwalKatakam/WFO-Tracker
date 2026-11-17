@@ -12,7 +12,6 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import com.example.MainActivity
 import com.example.R
-import com.example.data.preferences.WfoPreferences
 import com.example.data.repository.WfoRepository
 import com.example.widget.WfoAppWidgetProvider
 import kotlinx.coroutines.CoroutineScope
@@ -79,7 +78,7 @@ class GeofenceArrivalReceiver : BroadcastReceiver() {
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
                 val channel = NotificationChannel(
                     GEOFENCE_CHANNEL_ID,
-                    "Office Arrival Notifications",
+                    "Office arrival notifications",
                     NotificationManager.IMPORTANCE_HIGH
                 ).apply {
                     description = "Prompts to confirm punch-in and asks before applying any transit offsets"

@@ -257,22 +257,6 @@ class WfoViewModel @JvmOverloads constructor(
         _uiState.update { it.copy(showStreakBreakdownDialog = show) }
     }
 
-    fun openTimerQuickActionMenu(show: Boolean) {
-        _uiState.update { it.copy(showTimerQuickActionMenu = show) }
-    }
-
-    fun openPunchInWithNoteDialog(show: Boolean) {
-        _uiState.update { it.copy(showPunchInWithNoteDialog = show) }
-    }
-
-    fun openForgotPunchInDialog(show: Boolean) {
-        _uiState.update { it.copy(showForgotPunchInDialog = show) }
-    }
-
-    fun openYearOverYearDialog(show: Boolean) {
-        _uiState.update { it.copy(showYearOverYearDialog = show) }
-    }
-
     // Pull to Refresh
     fun pullToRefresh(context: Context) {
         viewModelScope.launch {
@@ -359,8 +343,7 @@ class WfoViewModel @JvmOverloads constructor(
             _uiState.update {
                 it.copy(
                     snackbarMessage = if (!initialNote.isNullOrBlank()) "Punched in with note" else "Punched in",
-                    geofenceAlertMessage = null,
-                    showPunchInWithNoteDialog = false
+                    geofenceAlertMessage = null
                 )
             }
         }
@@ -388,7 +371,6 @@ class WfoViewModel @JvmOverloads constructor(
             val timeFormat = SimpleDateFormat("hh:mm a", Locale.getDefault())
             _uiState.update {
                 it.copy(
-                    showForgotPunchInDialog = false,
                     snackbarMessage = "Punched in at ${timeFormat.format(Date(startMillis))}"
                 )
             }
@@ -416,7 +398,6 @@ class WfoViewModel @JvmOverloads constructor(
             val timeFormat = SimpleDateFormat("hh:mm a", Locale.getDefault())
             _uiState.update {
                 it.copy(
-                    showTimerQuickActionMenu = false,
                     snackbarMessage = "Arrival time adjusted to ${timeFormat.format(Date(newStart))}"
                 )
             }
@@ -441,7 +422,6 @@ class WfoViewModel @JvmOverloads constructor(
             )
             _uiState.update {
                 it.copy(
-                    showTimerQuickActionMenu = false,
                     snackbarMessage = "Today marked as work from home"
                 )
             }

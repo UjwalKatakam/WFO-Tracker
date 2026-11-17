@@ -50,11 +50,7 @@ data class WfoUiState(
     val showArrivalPrompt: Boolean = false,
     val showDeparturePrompt: Boolean = false,
     val showBatteryOptNudge: Boolean = false,
-    val showStreakBreakdownDialog: Boolean = false,
-    val showTimerQuickActionMenu: Boolean = false,
-    val showPunchInWithNoteDialog: Boolean = false,
-    val showForgotPunchInDialog: Boolean = false,
-    val showYearOverYearDialog: Boolean = false
+    val showStreakBreakdownDialog: Boolean = false
 ) {
     val currentMonthLogs: List<CheckInLog>
         get() = logs.filter {

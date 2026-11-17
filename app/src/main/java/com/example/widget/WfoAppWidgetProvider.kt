@@ -9,6 +9,7 @@ import android.content.Intent
 import android.os.SystemClock
 import android.view.View
 import android.widget.RemoteViews
+import androidx.core.content.ContextCompat
 import com.example.MainActivity
 import com.example.R
 import com.example.data.preferences.WfoPreferences
@@ -43,6 +44,9 @@ class WfoAppWidgetProvider : AppWidgetProvider() {
                 val preferences = WfoPreferences(context)
                 val settings = preferences.settingsFlow.first()
                 val isPunchedIn = settings.activePunchStartMillis != null && settings.activePunchStartMillis > 0
+                val presentColor = ContextCompat.getColor(context, R.color.app_present)
+                val mutedColor = ContextCompat.getColor(context, R.color.app_muted)
+                val minHoursStr = String.format(Locale.US, "%.1f", settings.minHours)
 
                 for (id in ids) {
                     val views = RemoteViews(context.packageName, R.layout.widget_wfo_tracker)
@@ -64,9 +68,9 @@ class WfoAppWidgetProvider : AppWidgetProvider() {
                         val targetMillis = startMillis + (settings.minHours * 3600 * 1000L).toLong()
                         val targetTimeStr = SimpleDateFormat("hh:mm a", Locale.getDefault()).format(Date(targetMillis))
 
-                        // Status Pill
-                        views.setTextViewText(R.id.widget_status_pill, "● LIVE AT OFFICE")
-                        views.setTextColor(R.id.widget_status_pill, 0xFF10B981.toInt())
+                        // Status label
+                        views.setTextViewText(R.id.widget_status_pill, context.getString(R.string.widget_status_in_office))
+                        views.setTextColor(R.id.widget_status_pill, presentColor)
 
                         // Chronometer
                         views.setViewVisibility(R.id.widget_chronometer, View.VISIBLE)
@@ -77,10 +81,13 @@ class WfoAppWidgetProvider : AppWidgetProvider() {
                         views.setChronometer(R.id.widget_chronometer, baseRealtime, null, true)
 
                         // Subtitle
-                        views.setTextViewText(R.id.widget_sub_info, "Target (${String.format(Locale.US, "%.1f", settings.minHours)}h): $targetTimeStr")
+                        views.setTextViewText(
+                            R.id.widget_sub_info,
+                            context.getString(R.string.widget_target_time, minHoursStr, targetTimeStr)
+                        )
 
-                        // Action Button: Punch Out
-                        views.setTextViewText(R.id.widget_action_btn, "Punch Out")
+                        // Action Button: Punch out
+                        views.setTextViewText(R.id.widget_action_btn, context.getString(R.string.widget_action_punch_out))
                         val punchOutIntent = Intent(context, PunchActionReceiver::class.java).apply {
                             action = PunchActionReceiver.ACTION_WIDGET_PUNCH_OUT
                         }
@@ -93,16 +100,19 @@ class WfoAppWidgetProvider : AppWidgetProvider() {
                         views.setOnClickPendingIntent(R.id.widget_action_btn, punchOutPendingIntent)
                     } else {
                         // Inactive state
-                        views.setTextViewText(R.id.widget_status_pill, "OFFLINE")
-                        views.setTextColor(R.id.widget_status_pill, 0xFF94A3B8.toInt())
+                        views.setTextViewText(R.id.widget_status_pill, context.getString(R.string.widget_status_idle))
+                        views.setTextColor(R.id.widget_status_pill, mutedColor)
 
                         views.setViewVisibility(R.id.widget_chronometer, View.GONE)
                         views.setViewVisibility(R.id.widget_static_time, View.VISIBLE)
-                        views.setTextViewText(R.id.widget_static_time, "Not Punched In")
-                        views.setTextViewText(R.id.widget_sub_info, "Daily Target: ${String.format(Locale.US, "%.1f", settings.minHours)} hours")
+                        views.setTextViewText(R.id.widget_static_time, context.getString(R.string.widget_status_idle))
+                        views.setTextViewText(
+                            R.id.widget_sub_info,
+                            context.getString(R.string.widget_daily_target, minHoursStr)
+                        )
 
-                        // Action Button: Punch In (Opens app with dialog to confirm or punches in directly)
-                        views.setTextViewText(R.id.widget_action_btn, "Punch In")
+                        // Action Button: Punch in
+                        views.setTextViewText(R.id.widget_action_btn, context.getString(R.string.widget_action_punch_in))
                         val punchInIntent = Intent(context, PunchActionReceiver::class.java).apply {
                             action = PunchActionReceiver.ACTION_WIDGET_PUNCH_IN
                         }

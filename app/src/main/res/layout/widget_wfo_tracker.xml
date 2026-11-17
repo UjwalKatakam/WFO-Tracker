@@ -18,20 +18,18 @@
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:text="WFO Tracker"
-            android:textColor="@color/widget_muted"
-            android:textSize="12sp"
-            android:textStyle="bold" />
+            android:text="@string/app_name"
+            android:textColor="@color/app_muted"
+            android:textSize="12sp" />
 
-        <!-- Status Pill -->
+        <!-- Status Label -->
         <TextView
             android:id="@+id/widget_status_pill"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="Offline"
-            android:textColor="@color/widget_muted"
+            android:text="@string/widget_status_idle"
+            android:textColor="@color/app_muted"
             android:textSize="12sp"
-            android:textStyle="bold"
             android:paddingStart="8dp"
             android:paddingEnd="8dp"
             android:paddingTop="2dp"
@@ -47,7 +45,7 @@
         android:gravity="center_vertical"
         android:layout_marginTop="8dp">
 
-        <!-- Left Column: Chronometer / Today's Hours -->
+        <!-- Left Column: Chronometer / Static Status -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -59,9 +57,10 @@
                 android:id="@+id/widget_chronometer"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="@color/widget_ink"
+                android:fontFamily="sans-serif-medium"
+                android:fontFeatureSettings="tnum"
+                android:textColor="@color/app_ink"
                 android:textSize="22sp"
-                android:textStyle="bold"
                 android:visibility="gone" />
 
             <!-- Static / Inactive Time Display -->
@@ -69,10 +68,10 @@
                 android:id="@+id/widget_static_time"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:text="Not punched in"
-                android:textColor="@color/widget_ink"
-                android:textSize="18sp"
-                android:textStyle="bold" />
+                android:fontFamily="sans-serif-medium"
+                android:text="@string/widget_status_idle"
+                android:textColor="@color/app_ink"
+                android:textSize="18sp" />
 
             <!-- Subtitle target info -->
             <TextView
@@ -80,8 +79,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="2dp"
-                android:text="Tap to punch in"
-                android:textColor="@color/widget_muted"
+                android:text="@string/widget_tap_to_punch_in"
+                android:textColor="@color/app_muted"
                 android:textSize="12sp" />
         </LinearLayout>
 
@@ -89,14 +88,17 @@
         <Button
             android:id="@+id/widget_action_btn"
             android:layout_width="wrap_content"
-            android:layout_height="38dp"
+            android:layout_height="wrap_content"
+            android:minHeight="48dp"
             android:background="@drawable/widget_button_bg"
-            android:text="Punch in"
-            android:textColor="@color/widget_on_present"
-            android:textSize="13sp"
-            android:textStyle="bold"
-            android:paddingStart="14dp"
-            android:paddingEnd="14dp" />
+            android:fontFamily="sans-serif-medium"
+            android:stateListAnimator="@null"
+            android:text="@string/widget_action_punch_in"
+            android:textAllCaps="false"
+            android:textColor="@color/app_ground"
+            android:textSize="14sp"
+            android:paddingStart="16dp"
+            android:paddingEnd="16dp" />
     </LinearLayout>
 
 </LinearLayout>

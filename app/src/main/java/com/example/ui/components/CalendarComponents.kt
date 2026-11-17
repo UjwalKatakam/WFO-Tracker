@@ -9,7 +9,6 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -38,8 +37,6 @@ import androidx.compose.material.icons.filled.LocalHospital
 import androidx.compose.material.icons.filled.NorthEast
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -55,7 +52,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
@@ -67,7 +63,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.data.local.CheckInLog
 import com.example.data.local.LeaveHoliday
 import com.example.ui.theme.AppTheme
@@ -583,8 +578,7 @@ fun MonthCalendarCard(
                                                 text = letter,
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = AppTheme.colors.muted,
-                                                fontWeight = FontWeight.Bold,
-                                                fontSize = 12.sp
+                                                fontWeight = FontWeight.Bold
                                             )
                                         }
                                     } else if (log != null) {
@@ -593,7 +587,6 @@ fun MonthCalendarCard(
                                             style = MaterialTheme.typography.labelSmall,
                                             color = if (isValidWfo) AppTheme.colors.present else AppTheme.colors.short,
                                             fontWeight = FontWeight.Medium,
-                                            fontSize = 12.sp,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
                                         )
@@ -640,8 +633,7 @@ fun MonthCalendarCard(
                             text = "$weekWfoCount/$targetDaysPerWeek",
                             style = MaterialTheme.typography.labelMedium,
                             color = if (isQuotaMet) AppTheme.colors.present else AppTheme.colors.muted,
-                            fontWeight = if (isQuotaMet) FontWeight.SemiBold else FontWeight.Normal,
-                            fontSize = 12.sp
+                            fontWeight = if (isQuotaMet) FontWeight.SemiBold else FontWeight.Normal
                         )
                     }
                 }
@@ -753,15 +745,13 @@ fun YearMatrixMonthCard(
                             text = "$validDaysCount office days",
                             style = MaterialTheme.typography.labelSmall,
                             color = AppTheme.colors.present,
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 12.sp
+                            fontWeight = FontWeight.Medium
                         )
                         if (leaveDaysCount > 0) {
                             Text(
                                 text = "$leaveDaysCount leaves",
                                 style = MaterialTheme.typography.labelSmall,
-                                color = AppTheme.colors.muted,
-                                fontSize = 12.sp
+                                color = AppTheme.colors.muted
                             )
                         }
                     }
@@ -895,8 +885,7 @@ fun YearMatrixMonthCard(
                                         Text(
                                             text = "$dayNumber",
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = AppTheme.colors.ink,
-                                            fontSize = 12.sp
+                                            color = AppTheme.colors.ink
                                         )
                                         Icon(
                                             imageVector = leaveIcon,
@@ -914,8 +903,7 @@ fun YearMatrixMonthCard(
                                             isShortWfo -> AppTheme.colors.short
                                             isWeekend -> AppTheme.colors.muted.copy(alpha = 0.5f)
                                             else -> AppTheme.colors.ink
-                                        },
-                                        fontSize = 12.sp
+                                        }
                                     )
                                 }
                             }
@@ -1003,7 +991,7 @@ fun DailyStatusTimelineCard(
 
             when {
                 leave != null -> {
-                    val (icon, letter) = getLeaveIconAndLetter(leave.type)
+                    val (icon, _) = getLeaveIconAndLetter(leave.type)
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth()
@@ -1084,24 +1072,14 @@ fun DailyStatusTimelineCard(
                 }
 
                 else -> {
-                    // Helpful hint empty state under the selected day when nothing is logged
-                    Column(
+                    Text(
+                        text = "No entries this month. Press and hold a day to add one.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = AppTheme.colors.muted,
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(vertical = 8.dp)
-                    ) {
-                        Text(
-                            text = "No activity recorded for this day.",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = AppTheme.colors.ink
-                        )
-                        Spacer(modifier = Modifier.height(4.dp))
-                        Text(
-                            text = "Tap Log day above or press and hold any calendar date to record office attendance, leave, or holiday.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = AppTheme.colors.muted
-                        )
-                    }
+                    )
                 }
             }
         }

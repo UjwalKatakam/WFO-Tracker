@@ -22,7 +22,6 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
-import java.util.UUID
 
 data class SyncSummary(
     val logsAdded: Int,
@@ -325,7 +324,7 @@ class WfoRepository(
             }
 
             if (token.isEmpty() || gistId.isEmpty()) {
-                return@withContext Result.failure(Exception("Please configure GitHub Token and Gist ID in Settings."))
+                return@withContext Result.failure(Exception("Please configure GitHub token and Gist ID in Settings."))
             }
 
             val logs = database.checkInLogDao().getAllLogs().first()
@@ -390,7 +389,7 @@ class WfoRepository(
                 gistId = gistId,
                 authHeader = authHeader,
                 request = GistUpdateRequest(
-                    description = "WFO Tracker & Insights Cloud Backup",
+                    description = "WFO Tracker cloud backup",
                     files = filesMap
                 )
             )
@@ -400,9 +399,9 @@ class WfoRepository(
             } else {
                 val code = response.code()
                 val err = when (code) {
-                    401 -> "GitHub Unauthorized (401): Personal Access Token is invalid or expired."
-                    404 -> "Gist Not Found (404): Please check your Gist ID."
-                    else -> "GitHub Sync failed (HTTP $code): ${response.message()}"
+                    401 -> "GitHub unauthorized (401): Personal access token is invalid or expired."
+                    404 -> "Gist not found (404): Please check your Gist ID."
+                    else -> "GitHub sync failed (HTTP $code): ${response.message()}"
                 }
                 Result.failure(Exception(err))
             }
@@ -422,7 +421,7 @@ class WfoRepository(
             }
 
             if (token.isEmpty() || gistId.isEmpty()) {
-                return@withContext Result.failure(Exception("Please configure GitHub Token and Gist ID in Settings."))
+                return@withContext Result.failure(Exception("Please configure GitHub token and Gist ID in Settings."))
             }
 
             val authHeader = if (token.startsWith("token ", ignoreCase = true) || token.startsWith("Bearer ", ignoreCase = true)) {
@@ -435,8 +434,8 @@ class WfoRepository(
             if (!response.isSuccessful) {
                 val code = response.code()
                 val err = when (code) {
-                    401 -> "GitHub Unauthorized (401): Personal Access Token is invalid or expired."
-                    404 -> "Gist Not Found (404): Please verify Gist ID."
+                    401 -> "GitHub unauthorized (401): Personal access token is invalid or expired."
+                    404 -> "Gist not found (404): Please verify Gist ID."
                     else -> "Download failed (HTTP $code): ${response.message()}"
                 }
                 return@withContext Result.failure(Exception(err))
@@ -460,8 +459,10 @@ class WfoRepository(
             // 2. Merge wfo_leaves.json
             gistData.files["wfo_leaves.json"]?.content?.let { content ->
                 val leavesList = parseLeavesJson(content)
-                val existingLeaves = database.leaveHolidayDao().getAllLeaves().first().associateBy { it.date }
-                val newLeaves = leavesList.filter { !existingLeaves.containsKey(it.date) }
+                val existingKeys = database.leaveHolidayDao().getAllLeaves().first()
+                    .map { "${it.type}-${it.date}" }
+                    .toSet()
+                val newLeaves = leavesList.filter { "${it.type}-${it.date}" !in existingKeys }
                 if (newLeaves.isNotEmpty()) {
                     database.leaveHolidayDao().insertAll(newLeaves)
                     leavesMerged = newLeaves.size
@@ -596,8 +597,10 @@ class WfoRepository(
                 if (root.has("leaves")) {
                     val leavesJson = root.getJSONArray("leaves").toString()
                     val parsed = parseLeavesJson(leavesJson)
-                    val existing = database.leaveHolidayDao().getAllLeaves().first().associateBy { it.date }
-                    val toInsert = parsed.filter { !existing.containsKey(it.date) }
+                    val existingKeys = database.leaveHolidayDao().getAllLeaves().first()
+                        .map { "${it.type}-${it.date}" }
+                        .toSet()
+                    val toInsert = parsed.filter { "${it.type}-${it.date}" !in existingKeys }
                     if (toInsert.isNotEmpty()) {
                         database.leaveHolidayDao().insertAll(toInsert)
                         leavesAdded = toInsert.size
@@ -660,12 +663,16 @@ class WfoRepository(
         val arr = JSONArray(jsonContent)
         for (i in 0 until arr.length()) {
             val obj = arr.getJSONObject(i)
-            val id = if (obj.has("id")) obj.getString("id") else UUID.randomUUID().toString()
             val date = obj.getString("date")
-            val type = obj.optString("type", "holiday")
-            val title = if (obj.has("title")) obj.getString("title") else obj.optString("desc", "Holiday")
-            list.add(LeaveHoliday(id = id, type = type, title = title, date = date))
+            val type = obj.optString("type", LeaveDefaults.TYPE_HOLIDAY)
+            val rawTitle = if (obj.has("title")) obj.getString("title") else obj.optString("desc", "")
+            val title = rawTitle.trim().ifBlank { LeaveDefaults.defaultTitleFor(type) }
+            val normalizedId = "$type-$date"
+            list.add(LeaveHoliday(id = normalizedId, type = type, title = title, date = date))
         }
         return list
+            .groupBy { it.date to it.type }
+            .values
+            .map { group -> group.maxBy { it.title.length } }
     }
 }

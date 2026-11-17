@@ -172,7 +172,7 @@ fun sharePdfReport(context: Context, file: File) {
         val intent = Intent(Intent.ACTION_SEND).apply {
             type = "application/pdf"
             putExtra(Intent.EXTRA_STREAM, uri)
-            putExtra(Intent.EXTRA_SUBJECT, "WFO Monthly Compliance Audit Report")
+            putExtra(Intent.EXTRA_SUBJECT, "WFO monthly compliance audit report")
             addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
         }
         context.startActivity(Intent.createChooser(intent, "Share attendance report"))

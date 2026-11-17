@@ -35,7 +35,7 @@ class WfoApplication : Application() {
 
             val liveTimerChannel = NotificationChannel(
                 PunchTimerService.CHANNEL_ID,
-                "WFO Active Chronometer",
+                "WFO active chronometer",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
                 description = "Live ticking notification for ongoing office check-in"
@@ -44,7 +44,7 @@ class WfoApplication : Application() {
 
             val alertChannel = NotificationChannel(
                 PunchTimerService.ALERT_CHANNEL_ID,
-                "WFO Target Alerts",
+                "WFO target alerts",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "Audible & vibration alerts when daily target hours are reached"

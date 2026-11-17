@@ -32,7 +32,6 @@ import androidx.compose.material.icons.filled.PictureAsPdf
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -58,7 +57,6 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import com.example.ui.components.ReportMonthPickerSheet
 import com.example.ui.components.WfoBottomSheet
 import com.example.ui.components.WfoListRow
@@ -453,7 +451,7 @@ fun SettingsScreen(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             WfoTonalButton(
-                text = if (uiState.isSyncingCloud) "Syncing..." else "Push to cloud",
+                text = if (uiState.isSyncingCloud) "Syncing" else "Push to cloud",
                 icon = if (!uiState.isSyncingCloud) Icons.Default.CloudUpload else null,
                 onClick = { viewModel.pushToCloud() },
                 enabled = !uiState.isSyncingCloud,
@@ -696,7 +694,7 @@ private fun EditLocationSheet(
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
             WfoTonalButton(
-                text = if (isFetchingGps) "Fetching coordinates..." else "Set to current location",
+                text = if (isFetchingGps) "Fetching coordinates" else "Set to current location",
                 icon = if (!isFetchingGps) Icons.Default.MyLocation else null,
                 onClick = {
                     isFetchingGps = true
@@ -889,7 +887,7 @@ private fun EditGistIdSheet(
                 value = gistId,
                 onValueChange = { gistId = it },
                 label = { Text("Gist ID", style = MaterialTheme.typography.bodySmall) },
-                placeholder = { Text("e.g. 7f8a9b2c3d...") },
+                placeholder = { Text("e.g. 7f8a9b2c3d") },
                 singleLine = true,
                 colors = textFieldColors(),
                 shape = RoundedCornerShape(12.dp),

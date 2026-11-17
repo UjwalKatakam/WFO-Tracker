@@ -48,9 +48,9 @@ object LocationHelper {
                             )
                             val isWithin = dist <= radiusKm
                             val msg = if (isWithin) {
-                                String.format("Verified at Office! (%.2f km from coordinates)", dist)
+                                String.format("Verified at office (%.2f km from coordinates)", dist)
                             } else {
-                                String.format("Outside Office Geofence: %.2f km away (Allowed: %.1f km)", dist, radiusKm)
+                                String.format("Outside office geofence: %.2f km away (allowed: %.1f km)", dist, radiusKm)
                             }
                             continuation.resume(
                                 GeofenceStatus(

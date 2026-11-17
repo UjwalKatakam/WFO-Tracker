@@ -86,15 +86,15 @@ object PdfReportGenerator {
         paint.color = Color.rgb(30, 41, 59)
         paint.textSize = 11f
         paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-        canvas.drawText("Employee Information & Audit Context", 30f, 100f, paint)
+        canvas.drawText("Employee information and audit context", 30f, 100f, paint)
 
         paint.textSize = 9.5f
         paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
         paint.color = Color.rgb(71, 85, 105)
-        canvas.drawText("Employee Name: ${settings.employeeName}", 30f, 118f, paint)
-        canvas.drawText("Audit Period: $monthName", 30f, 134f, paint)
-        canvas.drawText("Generated On: ${SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(Date())}", 30f, 150f, paint)
-        canvas.drawText("Policy Goal: ${String.format(Locale.US, "%.1f", settings.minHours)}h/day, ${settings.targetDaysPerWeek} days/week", 30f, 166f, paint)
+        canvas.drawText("Employee name: ${settings.employeeName}", 30f, 118f, paint)
+        canvas.drawText("Audit period: $monthName", 30f, 134f, paint)
+        canvas.drawText("Generated on: ${SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.US).format(Date())}", 30f, 150f, paint)
+        canvas.drawText("Policy goal: ${String.format(Locale.US, "%.1f", settings.minHours)}h/day, ${settings.targetDaysPerWeek} days/week", 30f, 166f, paint)
 
         // 3. Status Rating Badge (Right)
         val badgeRect = RectF(350f, 92f, 565f, 172f)
@@ -130,22 +130,22 @@ object PdfReportGenerator {
         paint.textSize = 9f
         paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
         paint.color = Color.rgb(71, 85, 105)
-        canvas.drawText("Quota Met: $validDaysCount / $targetDays Days ($compliancePercentage%)", 365f, 136f, paint)
-        canvas.drawText("Exclusions: $monthLeavesCount Approved Leaves/Holidays", 365f, 152f, paint)
+        canvas.drawText("Quota met: $validDaysCount / $targetDays days ($compliancePercentage%)", 365f, 136f, paint)
+        canvas.drawText("Exclusions: $monthLeavesCount approved leaves/holidays", 365f, 152f, paint)
 
         // 4. Metrics Summary Table
         var curY = 195f
         paint.color = Color.rgb(30, 41, 59)
         paint.textSize = 11f
         paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-        canvas.drawText("Compliance Metric Summary", 30f, curY, paint)
+        canvas.drawText("Compliance metric summary", 30f, curY, paint)
 
         curY += 10f
         val summaryRows = listOf(
-            Pair("Required Monthly Goal", "$targetDays Valid Days (${String.format(Locale.US, "%.1f", settings.minHours)}h daily requirement)"),
-            Pair("Valid Days Completed", "$validDaysCount Days (${if (validDaysCount >= targetDays) "Target Met" else "${targetDays - validDaysCount} Days Short"})"),
-            Pair("Exclusions (Holidays/Leaves)", "$monthLeavesCount Days Excluded from Quota"),
-            Pair("Total Office Time Logged", "${totalLoggedMinutes / 60}h ${totalLoggedMinutes % 60}m (${String.format(Locale.US, "%.1f", totalLoggedHours)} hours)")
+            Pair("Required monthly goal", "$targetDays valid days (${String.format(Locale.US, "%.1f", settings.minHours)}h daily requirement)"),
+            Pair("Valid days completed", "$validDaysCount days (${if (validDaysCount >= targetDays) "target met" else "${targetDays - validDaysCount} days short"})"),
+            Pair("Exclusions (holidays/leaves)", "$monthLeavesCount days excluded from quota"),
+            Pair("Total office time logged", "${totalLoggedMinutes / 60}h ${totalLoggedMinutes % 60}m (${String.format(Locale.US, "%.1f", totalLoggedHours)} hours)")
         )
 
         paint.textSize = 9f
@@ -168,7 +168,7 @@ object PdfReportGenerator {
         paint.color = Color.rgb(30, 41, 59)
         paint.textSize = 11f
         paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
-        canvas.drawText("Detailed Office Check-in Log History", 30f, curY, paint)
+        canvas.drawText("Detailed office check-in log history", 30f, curY, paint)
 
         curY += 12f
         // Table Header
@@ -180,10 +180,10 @@ object PdfReportGenerator {
         paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.BOLD)
         canvas.drawText("Date", 40f, curY + 14f, paint)
         canvas.drawText("Day", 130f, curY + 14f, paint)
-        canvas.drawText("Punch In", 200f, curY + 14f, paint)
-        canvas.drawText("Punch Out", 280f, curY + 14f, paint)
-        canvas.drawText("Total Time", 370f, curY + 14f, paint)
-        canvas.drawText("Compliance Status", 460f, curY + 14f, paint)
+        canvas.drawText("Punch in", 200f, curY + 14f, paint)
+        canvas.drawText("Punch out", 280f, curY + 14f, paint)
+        canvas.drawText("Total time", 370f, curY + 14f, paint)
+        canvas.drawText("Compliance status", 460f, curY + 14f, paint)
         curY += 20f
 
         paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
@@ -220,7 +220,7 @@ object PdfReportGenerator {
             }
             if (monthLogs.size > maxLogsToRender) {
                 paint.color = Color.rgb(100, 116, 139)
-                canvas.drawText("... and ${monthLogs.size - maxLogsToRender} more entries in this period", 40f, curY + 14f, paint)
+                canvas.drawText("And ${monthLogs.size - maxLogsToRender} more entries in this period", 40f, curY + 14f, paint)
                 curY += 18f
             }
         }
@@ -235,8 +235,8 @@ object PdfReportGenerator {
         paint.color = Color.rgb(100, 116, 139)
         paint.textSize = 8.5f
         paint.typeface = Typeface.create(Typeface.DEFAULT, Typeface.NORMAL)
-        canvas.drawText("Employee Signature", 40f, signY + 16f, paint)
-        canvas.drawText("Reporting Manager / HR Signature", 350f, signY + 16f, paint)
+        canvas.drawText("Employee signature", 40f, signY + 16f, paint)
+        canvas.drawText("Reporting manager / HR signature", 350f, signY + 16f, paint)
 
         paint.textSize = 7.5f
         canvas.drawText("Generated by WFO Tracker", 40f, signY + 40f, paint)

@@ -16,7 +16,6 @@ import android.os.VibratorManager
 import androidx.core.app.NotificationCompat
 import com.example.MainActivity
 import com.example.R
-import com.example.data.preferences.WfoPreferences
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -232,7 +231,7 @@ class PunchTimerService : Service() {
             // Timer channel (silent, low priority chronometer)
             val timerChannel = NotificationChannel(
                 CHANNEL_ID,
-                "WFO Active Chronometer",
+                "WFO active chronometer",
                 NotificationManager.IMPORTANCE_LOW
             ).apply {
                 description = "Live ticking notification for active office session"
@@ -243,7 +242,7 @@ class PunchTimerService : Service() {
             // Alert channel (sound and vibration for target reached)
             val alertChannel = NotificationChannel(
                 ALERT_CHANNEL_ID,
-                "WFO Target Alerts",
+                "WFO target alerts",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "Audible & vibration alerts when daily target hours are reached"
@@ -261,7 +260,7 @@ class PunchTimerService : Service() {
             // Departure Reminder channel (Did you forget to punch out?)
             val departureChannel = NotificationChannel(
                 DEPARTURE_CHANNEL_ID,
-                "WFO Departure Reminders",
+                "WFO departure reminders",
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "Reminds you if punch timer is running past normal departure hours"

@@ -91,13 +91,18 @@ fun LeavesManagementDialog(
     var title by remember { mutableStateOf("") }
     var errorMsg by remember { mutableStateOf<String?>(null) }
 
-    // Pending delete and undo banner state (commits after 5s or on dialog dispose)
-    var pendingDeletedIds by remember { mutableStateOf(emptySet<String>()) }
+    // Pending delete and undo banner state (commits after 5s, on next delete, or on dialog dispose)
+    var pendingUndoDeleteId by remember { mutableStateOf<String?>(null) }
+    var committingDeletedIds by remember { mutableStateOf(emptySet<String>()) }
     var undoAction by remember { mutableStateOf<DialogUndoAction?>(null) }
     var undoNonce by remember { mutableIntStateOf(0) }
 
-    val latestPendingDeletes by rememberUpdatedState(pendingDeletedIds)
+    val latestPendingUndoId by rememberUpdatedState(pendingUndoDeleteId)
     val latestOnDeleteLeave by rememberUpdatedState(onDeleteLeave)
+
+    val hiddenIds = remember(pendingUndoDeleteId, committingDeletedIds) {
+        if (pendingUndoDeleteId != null) committingDeletedIds + pendingUndoDeleteId!! else committingDeletedIds
+    }
 
     // Import dates state
     var importInputText by remember { mutableStateOf("") }
@@ -120,7 +125,7 @@ fun LeavesManagementDialog(
         }
         val res = HolidayImportParser.parseInput(
             rawContent = rawText,
-            existingLeaves = leaves.filter { it.id !in pendingDeletedIds },
+            existingLeaves = leaves.filter { it.id !in hiddenIds },
             currentYear = currentYear
         )
         parsedCandidates = res.candidates
@@ -146,11 +151,11 @@ fun LeavesManagementDialog(
     }
 
     // Auto-reparse paste field when text or existing leaves change
-    LaunchedEffect(importInputText, leaves, pendingDeletedIds) {
+    LaunchedEffect(importInputText, leaves, hiddenIds) {
         if (importInputText.isNotBlank()) {
             val res = HolidayImportParser.parseInput(
                 rawContent = importInputText,
-                existingLeaves = leaves.filter { it.id !in pendingDeletedIds },
+                existingLeaves = leaves.filter { it.id !in hiddenIds },
                 currentYear = currentYear
             )
             parsedCandidates = res.candidates
@@ -166,18 +171,19 @@ fun LeavesManagementDialog(
         }
     }
 
-    // Reconcile pendingDeletedIds once Room deletes them
+    // Reconcile committingDeletedIds once Room deletes them
     LaunchedEffect(leaves) {
         val currentIds = leaves.map { it.id }.toSet()
-        pendingDeletedIds = pendingDeletedIds.filter { it in currentIds }.toSet()
+        committingDeletedIds = committingDeletedIds.filter { it in currentIds }.toSet()
     }
 
     // Finalize pending delete on 5-second timeout
     LaunchedEffect(undoNonce) {
         val current = undoAction ?: return@LaunchedEffect
         delay(5000L)
-        if (current is DialogUndoAction.SingleDelete && current.leaveId in pendingDeletedIds) {
-            pendingDeletedIds = pendingDeletedIds - current.leaveId
+        if (current is DialogUndoAction.SingleDelete && pendingUndoDeleteId == current.leaveId) {
+            pendingUndoDeleteId = null
+            committingDeletedIds = committingDeletedIds + current.leaveId
             latestOnDeleteLeave(current.leaveId)
         }
         if (undoAction == current) {
@@ -185,17 +191,17 @@ fun LeavesManagementDialog(
         }
     }
 
-    // Finalize any pending deletes when dialog closes
+    // Finalize any pending delete when dialog closes
     DisposableEffect(Unit) {
         onDispose {
-            latestPendingDeletes.forEach { id ->
+            latestPendingUndoId?.let { id ->
                 latestOnDeleteLeave(id)
             }
         }
     }
 
-    val visibleLeaves = remember(leaves, pendingDeletedIds) {
-        leaves.filter { it.id !in pendingDeletedIds }
+    val visibleLeaves = remember(leaves, hiddenIds) {
+        leaves.filter { it.id !in hiddenIds }
     }
 
     val groupedLeaves = remember(visibleLeaves) {
@@ -239,7 +245,9 @@ fun LeavesManagementDialog(
                             onUndoClick = {
                                 when (activeUndo) {
                                     is DialogUndoAction.SingleDelete -> {
-                                        pendingDeletedIds = pendingDeletedIds - activeUndo.leaveId
+                                        if (pendingUndoDeleteId == activeUndo.leaveId) {
+                                            pendingUndoDeleteId = null
+                                        }
                                     }
                                     is DialogUndoAction.BatchImport -> {
                                         onDeleteLeavesBatch(activeUndo.insertedIds)
@@ -249,8 +257,11 @@ fun LeavesManagementDialog(
                             },
                             onDismissClick = {
                                 if (activeUndo is DialogUndoAction.SingleDelete) {
-                                    pendingDeletedIds = pendingDeletedIds - activeUndo.leaveId
-                                    onDeleteLeave(activeUndo.leaveId)
+                                    if (pendingUndoDeleteId == activeUndo.leaveId) {
+                                        pendingUndoDeleteId = null
+                                        committingDeletedIds = committingDeletedIds + activeUndo.leaveId
+                                        onDeleteLeave(activeUndo.leaveId)
+                                    }
                                 }
                                 undoAction = null
                             },
@@ -508,8 +519,9 @@ fun LeavesManagementDialog(
                                 if (inserted.isNotEmpty()) {
                                     // Finalize any lingering single delete first
                                     val previousUndo = undoAction
-                                    if (previousUndo is DialogUndoAction.SingleDelete) {
-                                        pendingDeletedIds = pendingDeletedIds - previousUndo.leaveId
+                                    if (previousUndo is DialogUndoAction.SingleDelete && pendingUndoDeleteId == previousUndo.leaveId) {
+                                        pendingUndoDeleteId = null
+                                        committingDeletedIds = committingDeletedIds + previousUndo.leaveId
                                         onDeleteLeave(previousUndo.leaveId)
                                     }
                                     val count = inserted.size
@@ -546,13 +558,14 @@ fun LeavesManagementDialog(
                                 trailingContent = {
                                     IconButton(
                                         onClick = {
-                                            // Commit previous single pending delete if another is active
-                                            val prev = undoAction
-                                            if (prev is DialogUndoAction.SingleDelete && prev.leaveId != leave.id) {
-                                                pendingDeletedIds = pendingDeletedIds - prev.leaveId
-                                                onDeleteLeave(prev.leaveId)
+                                            // Commit previous pending delete immediately when another item is deleted
+                                            pendingUndoDeleteId?.let { prevId ->
+                                                if (prevId != leave.id) {
+                                                    committingDeletedIds = committingDeletedIds + prevId
+                                                    onDeleteLeave(prevId)
+                                                }
                                             }
-                                            pendingDeletedIds = pendingDeletedIds + leave.id
+                                            pendingUndoDeleteId = leave.id
                                             undoAction = DialogUndoAction.SingleDelete(
                                                 leaveId = leave.id,
                                                 message = "Removed ${leave.title}"

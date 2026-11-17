@@ -81,8 +81,6 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import androidx.core.content.FileProvider
 import com.example.data.local.CheckInLog
 import com.example.ui.components.ManualLogDialog
 import com.example.ui.components.ReportMonthPickerSheet
@@ -1073,7 +1071,7 @@ private fun escapeCsvField(value: String): String {
 }
 
 private fun shareCsv(context: Context, logs: List<CheckInLog>, minHours: Double) {
-    val csv = StringBuilder("Date,Check In,Check Out,Duration (Mins),Formatted Duration,Total Hours,Valid WFO Day,Notes\n")
+    val csv = StringBuilder("Date,Check in,Check out,Duration (mins),Formatted duration,Total hours,Valid WFO day,Notes\n")
     for (r in logs) {
         val notesEscaped = escapeCsvField(r.notes ?: "")
         val durationEscaped = escapeCsvField(r.formattedDuration)
@@ -1082,8 +1080,8 @@ private fun shareCsv(context: Context, logs: List<CheckInLog>, minHours: Double)
 
     val intent = Intent(Intent.ACTION_SEND).apply {
         type = "text/csv"
-        putExtra(Intent.EXTRA_SUBJECT, "WFO Attendance Log Export")
+        putExtra(Intent.EXTRA_SUBJECT, "WFO attendance log export")
         putExtra(Intent.EXTRA_TEXT, csv.toString())
     }
-    context.startActivity(Intent.createChooser(intent, "Export WFO CSV Data"))
+    context.startActivity(Intent.createChooser(intent, "Export WFO CSV data"))
 }

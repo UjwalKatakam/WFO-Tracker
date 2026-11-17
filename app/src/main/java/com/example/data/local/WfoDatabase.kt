@@ -43,7 +43,7 @@ abstract class WfoDatabase : RoomDatabase() {
                 }
 
                 val deduplicated = existing
-                    .groupBy { it.date }
+                    .groupBy { it.date to it.type }
                     .values
                     .map { group -> group.maxBy { it.title.length } }
 
