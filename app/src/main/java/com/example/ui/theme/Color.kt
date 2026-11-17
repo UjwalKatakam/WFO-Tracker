@@ -27,6 +27,7 @@ val DarkActionEnd = Color(0xFF34D399)
 val DarkOnAction = Color(0xFF0B1F17)
 val DarkTrackEmpty = Color(0xFF2E5744)
 val DarkTrackOutline = Color(0xFF4A7E66)
+val DarkWeekTile = Color(0xFF183629)
 val DarkShort = Color(0xFFF59E0B)
 val DarkDanger = Color(0xFFF87171)
 val DarkReward = Color(0xFFFBBF24)
@@ -50,8 +51,9 @@ val LightProgress = Color(0xFF15803D)
 val LightActionStart = Color(0xFF15803D)
 val LightActionEnd = Color(0xFF166534)
 val LightOnAction = Color(0xFFFFFFFF)
-val LightTrackEmpty = Color(0xFFECF7F0)
+val LightTrackEmpty = Color(0xFFCDEBD8)
 val LightTrackOutline = Color(0xFF7A9485)
+val LightWeekTile = Color(0xFFF3FBF6)
 val LightShort = Color(0xFFB45309)
 val LightDanger = Color(0xFFB91C1C)
 val LightReward = Color(0xFFD97706)
@@ -77,6 +79,7 @@ data class AppColors(
     val onAction: Color,
     val trackEmpty: Color,
     val trackOutline: Color,
+    val weekTile: Color,
     val short: Color,
     val danger: Color,
     val reward: Color,

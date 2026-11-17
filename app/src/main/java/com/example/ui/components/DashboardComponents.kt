@@ -313,19 +313,13 @@ fun DashboardHeroQuota(
     val presentDeepColor = AppTheme.colors.presentDeep
     val presentContainerColor = AppTheme.colors.presentContainer
     val ruleColor = AppTheme.colors.rule
-    val trackOutlineColor = AppTheme.colors.trackOutline
+    val trackEmptyColor = AppTheme.colors.trackEmpty
     val rewardColor = AppTheme.colors.reward
     val isDark = AppTheme.colors.isDark
 
-    val heroCardColor = if (isDark) AppTheme.colors.card else AppTheme.colors.card.copy(alpha = 0.92f)
-
-    Surface(
-        shape = SurfaceGroupShape,
-        color = heroCardColor,
-        border = wfoCardBorder(),
-        modifier = modifier
-            .fillMaxWidth()
-            .then(wfoCardShadow(elevation = 4.dp, shape = SurfaceGroupShape))
+    WfoCard(
+        modifier = modifier.fillMaxWidth(),
+        elevation = 8.dp
     ) {
         Box(modifier = Modifier.fillMaxWidth()) {
             Column(
@@ -400,7 +394,7 @@ fun DashboardHeroQuota(
 
                 // Milestone badge row inside the card
                 if (thresholds.isNotEmpty()) {
-                    val connectorColor = if (isDark) ruleColor else trackOutlineColor.copy(alpha = 0.45f)
+                    val connectorColor = if (isDark) trackEmptyColor else ruleColor
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.Top,
@@ -411,12 +405,12 @@ fun DashboardHeroQuota(
                                 Box(
                                     modifier = Modifier
                                         .weight(1f)
-                                        .height(40.dp),
+                                        .height(44.dp),
                                     contentAlignment = Alignment.Center
                                 ) {
                                     HorizontalDivider(
                                         color = connectorColor,
-                                        thickness = 1.dp
+                                        thickness = 2.dp
                                     )
                                 }
                             } else {
@@ -430,10 +424,9 @@ fun DashboardHeroQuota(
 
                             val badgeColor = AppTheme.colors.card
                             val badgeBorder = when {
-                                !isReached -> BorderStroke(1.5.dp, trackOutlineColor)
-                                isDark && isFinal -> BorderStroke(1.dp, rewardColor)
-                                isDark -> BorderStroke(1.dp, progressColor)
-                                else -> null
+                                !isReached -> BorderStroke(1.dp, ruleColor)
+                                isFinal -> BorderStroke(1.dp, rewardColor)
+                                else -> BorderStroke(1.dp, progressColor)
                             }
                             val iconTint = when {
                                 !isReached -> AppTheme.colors.muted
@@ -453,15 +446,15 @@ fun DashboardHeroQuota(
                                     color = badgeColor,
                                     border = badgeBorder,
                                     modifier = Modifier
-                                        .size(40.dp)
-                                        .then(wfoCardShadow(elevation = 3.dp, shape = CircleShape))
+                                        .size(44.dp)
+                                        .then(wfoCardShadow(elevation = 4.dp, shape = CircleShape))
                                 ) {
                                     Box(contentAlignment = Alignment.Center) {
                                         Icon(
                                             imageVector = Icons.Default.CardGiftcard,
                                             contentDescription = null,
                                             tint = iconTint,
-                                            modifier = Modifier.size(20.dp)
+                                            modifier = Modifier.size(24.dp)
                                         )
                                     }
                                 }
@@ -529,7 +522,6 @@ private fun HeroProgressRing(
 ) {
     val progressColor = AppTheme.colors.progress
     val trackEmptyColor = AppTheme.colors.trackEmpty
-    val trackOutlineColor = AppTheme.colors.trackOutline
     val inkColor = AppTheme.colors.ink
     val mutedColor = AppTheme.colors.muted
     val fontScale = LocalDensity.current.fontScale
@@ -548,7 +540,6 @@ private fun HeroProgressRing(
     ) {
         Canvas(modifier = Modifier.fillMaxSize()) {
             val strokePx = 12.dp.toPx()
-            val innerStrokePx = (strokePx - 2.dp.toPx()).coerceAtLeast(strokePx * 0.7f)
             val inset = strokePx / 2f
             val arcTopLeft = Offset(inset, inset)
             val arcSize = Size(size.width - strokePx, size.height - strokePx)
@@ -568,49 +559,17 @@ private fun HeroProgressRing(
                         index < validDays
                     }
 
-                    if (isFilled) {
-                        drawArc(
-                            color = progressColor,
-                            startAngle = startAngle,
-                            sweepAngle = sweepDegrees,
-                            useCenter = false,
-                            topLeft = arcTopLeft,
-                            size = arcSize,
-                            style = Stroke(width = strokePx, cap = StrokeCap.Butt)
-                        )
-                    } else {
-                        drawArc(
-                            color = trackOutlineColor,
-                            startAngle = startAngle,
-                            sweepAngle = sweepDegrees,
-                            useCenter = false,
-                            topLeft = arcTopLeft,
-                            size = arcSize,
-                            style = Stroke(width = strokePx, cap = StrokeCap.Butt)
-                        )
-                        val innerSweep = (sweepDegrees - 1.4f).coerceAtLeast(1f)
-                        val innerStart = startAngle + (sweepDegrees - innerSweep) / 2f
-                        drawArc(
-                            color = trackEmptyColor,
-                            startAngle = innerStart,
-                            sweepAngle = innerSweep,
-                            useCenter = false,
-                            topLeft = arcTopLeft,
-                            size = arcSize,
-                            style = Stroke(width = innerStrokePx, cap = StrokeCap.Butt)
-                        )
-                    }
+                    drawArc(
+                        color = if (isFilled) progressColor else trackEmptyColor,
+                        startAngle = startAngle,
+                        sweepAngle = sweepDegrees,
+                        useCenter = false,
+                        topLeft = arcTopLeft,
+                        size = arcSize,
+                        style = Stroke(width = strokePx, cap = StrokeCap.Butt)
+                    )
                 }
             } else {
-                drawArc(
-                    color = trackOutlineColor,
-                    startAngle = -90f,
-                    sweepAngle = 360f,
-                    useCenter = false,
-                    topLeft = arcTopLeft,
-                    size = arcSize,
-                    style = Stroke(width = strokePx, cap = StrokeCap.Butt)
-                )
                 drawArc(
                     color = trackEmptyColor,
                     startAngle = -90f,
@@ -618,7 +577,7 @@ private fun HeroProgressRing(
                     useCenter = false,
                     topLeft = arcTopLeft,
                     size = arcSize,
-                    style = Stroke(width = innerStrokePx, cap = StrokeCap.Butt)
+                    style = Stroke(width = strokePx, cap = StrokeCap.Butt)
                 )
                 val filledSweep = 360f * displayedProgress
                 if (filledSweep > 0f) {
@@ -1093,18 +1052,17 @@ fun DashboardThisWeek(
                 val markerDescription = "$fullDayName, $statusDescription"
 
                 val isDark = AppTheme.colors.isDark
-                val tileBackground = when {
-                    isPresent -> AppTheme.colors.presentContainer
-                    !isDark -> AppTheme.colors.card
-                    isShort || isLeave -> Color.Transparent
-                    else -> AppTheme.colors.card
+                val tileBackground = if (isPresent) {
+                    AppTheme.colors.presentContainer
+                } else {
+                    AppTheme.colors.weekTile
                 }
 
                 val tileBorder = when {
                     isToday -> BorderStroke(2.dp, AppTheme.colors.presentDeep)
                     isShort -> BorderStroke(1.dp, AppTheme.colors.short)
                     isLeave -> BorderStroke(1.dp, AppTheme.colors.rule)
-                    isDark && !isPresent -> BorderStroke(1.dp, AppTheme.colors.rule)
+                    isDark -> BorderStroke(1.dp, AppTheme.colors.rule)
                     else -> null
                 }
 
@@ -1133,7 +1091,7 @@ fun DashboardThisWeek(
                         modifier = Modifier
                             .fillMaxWidth()
                             .defaultMinSize(minHeight = 48.dp)
-                            .then(wfoCardShadow(elevation = 2.dp, shape = WeekTileShape))
+                            .then(wfoCardShadow(elevation = 3.dp, shape = WeekTileShape))
                             .semantics {
                                 this.contentDescription = markerDescription
                             }

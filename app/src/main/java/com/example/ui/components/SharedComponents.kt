@@ -72,12 +72,16 @@ import com.example.ui.theme.SheetShape
 import com.example.ui.theme.SurfaceGroupShape
 
 @Composable
-fun wfoCardBorder(): BorderStroke? =
-    if (AppTheme.colors.isDark) BorderStroke(1.dp, AppTheme.colors.rule) else null
+fun wfoCardBorder(): BorderStroke =
+    if (AppTheme.colors.isDark) {
+        BorderStroke(1.dp, AppTheme.colors.rule)
+    } else {
+        BorderStroke(1.dp, AppTheme.colors.rule.copy(alpha = 0.70f))
+    }
 
 @Composable
 fun wfoCardShadow(
-    elevation: Dp = 4.dp,
+    elevation: Dp = 8.dp,
     shape: Shape = SurfaceGroupShape
 ): Modifier = if (AppTheme.colors.isDark || elevation <= 0.dp) {
     Modifier
@@ -86,8 +90,8 @@ fun wfoCardShadow(
         elevation = elevation,
         shape = shape,
         clip = false,
-        ambientColor = AppTheme.colors.shadowInk.copy(alpha = 0.22f),
-        spotColor = AppTheme.colors.shadowInk.copy(alpha = 0.22f)
+        ambientColor = AppTheme.colors.shadowInk.copy(alpha = 0.30f),
+        spotColor = AppTheme.colors.shadowInk.copy(alpha = 0.30f)
     )
 }
 
@@ -95,7 +99,7 @@ fun wfoCardShadow(
 fun WfoCard(
     modifier: Modifier = Modifier,
     shape: Shape = SurfaceGroupShape,
-    elevation: Dp = 4.dp,
+    elevation: Dp = 8.dp,
     color: Color = AppTheme.colors.card,
     content: @Composable () -> Unit
 ) {
@@ -684,7 +688,7 @@ fun WfoUndoBanner(
         border = wfoCardBorder(),
         modifier = modifier
             .fillMaxWidth()
-            .then(wfoCardShadow(elevation = 4.dp, shape = SurfaceGroupShape))
+            .then(wfoCardShadow(elevation = 8.dp, shape = SurfaceGroupShape))
             .semantics {
                 liveRegion = LiveRegionMode.Polite
             }
