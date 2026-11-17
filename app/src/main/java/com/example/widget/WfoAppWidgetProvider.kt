@@ -100,7 +100,7 @@ class WfoAppWidgetProvider : AppWidgetProvider() {
                         views.setOnClickPendingIntent(R.id.widget_action_btn, punchOutPendingIntent)
                     } else {
                         // Inactive state
-                        views.setTextViewText(R.id.widget_status_pill, context.getString(R.string.widget_status_idle))
+                        views.setTextViewText(R.id.widget_status_pill, context.getString(R.string.widget_status_offline))
                         views.setTextColor(R.id.widget_status_pill, mutedColor)
 
                         views.setViewVisibility(R.id.widget_chronometer, View.GONE)

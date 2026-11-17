@@ -1073,7 +1073,7 @@ fun DailyStatusTimelineCard(
 
                 else -> {
                     Text(
-                        text = "No entries this month. Press and hold a day to add one.",
+                        text = "Nothing logged for this day. Press and hold a day to add one.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = AppTheme.colors.muted,
                         modifier = Modifier

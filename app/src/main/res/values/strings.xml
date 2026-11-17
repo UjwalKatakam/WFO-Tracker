@@ -2,6 +2,7 @@
     <string name="app_name">WFO Tracker</string>
     <string name="widget_description">Glanceable live punch status, daily progress, and one-tap action</string>
     <string name="widget_status_in_office">In office</string>
+    <string name="widget_status_offline">Offline</string>
     <string name="widget_status_idle">Not punched in</string>
     <string name="widget_tap_to_punch_in">Tap to punch in</string>
     <string name="widget_action_punch_in">Punch in</string>

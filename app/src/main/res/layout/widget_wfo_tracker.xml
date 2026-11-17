@@ -27,7 +27,7 @@
             android:id="@+id/widget_status_pill"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="@string/widget_status_idle"
+            android:text="@string/widget_status_offline"
             android:textColor="@color/app_muted"
             android:textSize="12sp"
             android:paddingStart="8dp"
