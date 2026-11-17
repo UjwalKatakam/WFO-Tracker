@@ -187,7 +187,7 @@ fun SettingsScreen(
             settings = uiState.settings,
             onDismissRequest = { showEditPolicySheet = false },
             onSave = { updatedSettings ->
-                viewModel.updateSettings(updatedSettings)
+                viewModel.updateSettings(updatedSettings, showConfirmation = true)
                 showEditPolicySheet = false
             }
         )
@@ -199,7 +199,7 @@ fun SettingsScreen(
             settings = uiState.settings,
             onDismissRequest = { showEditLocationSheet = false },
             onSave = { updatedSettings ->
-                viewModel.updateSettings(updatedSettings)
+                viewModel.updateSettings(updatedSettings, showConfirmation = true)
                 showEditLocationSheet = false
             }
         )
@@ -211,7 +211,7 @@ fun SettingsScreen(
             currentToken = uiState.settings.gitToken,
             onDismissRequest = { showEditTokenSheet = false },
             onSave = { token ->
-                viewModel.updateSettings(uiState.settings.copy(gitToken = token))
+                viewModel.updateSettings(uiState.settings.copy(gitToken = token), showConfirmation = true)
                 showEditTokenSheet = false
             }
         )
@@ -223,7 +223,7 @@ fun SettingsScreen(
             currentGistId = uiState.settings.gistId,
             onDismissRequest = { showEditGistIdSheet = false },
             onSave = { gistId ->
-                viewModel.updateSettings(uiState.settings.copy(gistId = gistId))
+                viewModel.updateSettings(uiState.settings.copy(gistId = gistId), showConfirmation = true)
                 showEditGistIdSheet = false
             }
         )
@@ -371,7 +371,7 @@ fun SettingsScreen(
 
         WfoSwitchRow(
             title = "Mute on holidays and weekends",
-            subtitle = "Suppress arrival alerts on non-working days",
+            subtitle = "Skip arrival alerts on weekends and holiday, sick, or vacation days (not WFH)",
             checked = uiState.settings.autoMuteHolidays,
             onCheckedChange = { checked ->
                 viewModel.updateSettings(uiState.settings.copy(autoMuteHolidays = checked))
@@ -415,7 +415,12 @@ fun SettingsScreen(
 
         WfoListRow(
             title = "Personal access token",
-            subtitle = if (uiState.settings.gitToken.isNotBlank()) "Configured (tap to change)" else "Not configured",
+            subtitle = when {
+                uiState.settings.tokenUnreadable -> "Needs re-entry"
+                uiState.settings.gitToken.isNotBlank() -> "Configured (tap to change)"
+                else -> "Not configured"
+            },
+            subtitleColor = if (uiState.settings.tokenUnreadable) AppTheme.colors.short else AppTheme.colors.muted,
             trailingContent = {
                 Icon(
                     imageVector = Icons.AutoMirrored.Filled.ArrowForward,

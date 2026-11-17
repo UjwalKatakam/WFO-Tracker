@@ -7,9 +7,11 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -119,15 +121,22 @@ fun CalendarArchiveScreen(
                         shape = CircleShape,
                         color = if (isMonth) AppTheme.colors.present.copy(alpha = if (AppTheme.colors.isDark) 0.2f else 0.14f) else AppTheme.colors.raised,
                         border = if (isMonth) BorderStroke(1.dp, AppTheme.colors.present) else null,
-                        modifier = Modifier.semantics { role = Role.Tab }
+                        modifier = Modifier
+                            .defaultMinSize(minHeight = 48.dp)
+                            .heightIn(min = 48.dp)
+                            .semantics { role = Role.Tab }
                     ) {
-                        Text(
-                            text = "Month",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = if (isMonth) AppTheme.colors.present else AppTheme.colors.muted,
-                            fontWeight = if (isMonth) FontWeight.SemiBold else FontWeight.Normal,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                        )
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                        ) {
+                            Text(
+                                text = "Month",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (isMonth) AppTheme.colors.present else AppTheme.colors.muted,
+                                fontWeight = if (isMonth) FontWeight.SemiBold else FontWeight.Normal
+                            )
+                        }
                     }
 
                     val isMatrix = displayMode == CalendarDisplayMode.YEAR_MATRIX
@@ -137,15 +146,22 @@ fun CalendarArchiveScreen(
                         shape = CircleShape,
                         color = if (isMatrix) AppTheme.colors.present.copy(alpha = if (AppTheme.colors.isDark) 0.2f else 0.14f) else AppTheme.colors.raised,
                         border = if (isMatrix) BorderStroke(1.dp, AppTheme.colors.present) else null,
-                        modifier = Modifier.semantics { role = Role.Tab }
+                        modifier = Modifier
+                            .defaultMinSize(minHeight = 48.dp)
+                            .heightIn(min = 48.dp)
+                            .semantics { role = Role.Tab }
                     ) {
-                        Text(
-                            text = "12-month matrix",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = if (isMatrix) AppTheme.colors.present else AppTheme.colors.muted,
-                            fontWeight = if (isMatrix) FontWeight.SemiBold else FontWeight.Normal,
-                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
-                        )
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.padding(horizontal = 16.dp, vertical = 10.dp)
+                        ) {
+                            Text(
+                                text = "12-month matrix",
+                                style = MaterialTheme.typography.labelMedium,
+                                color = if (isMatrix) AppTheme.colors.present else AppTheme.colors.muted,
+                                fontWeight = if (isMatrix) FontWeight.SemiBold else FontWeight.Normal
+                            )
+                        }
                     }
                 }
             }
@@ -191,16 +207,24 @@ fun CalendarArchiveScreen(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(14.dp)
             ) {
-                // Unified month navigation control
+                // Unified month navigation control + interaction hint
                 item {
-                    MonthNavigationHeader(
-                        year = uiState.selectedArchiveYear,
-                        month = uiState.selectedArchiveMonth,
-                        onPrevMonth = { viewModel.setArchiveMonth(-1) },
-                        onNextMonth = { viewModel.setArchiveMonth(1) },
-                        onSelectYearMonth = { y, m -> viewModel.setArchiveYearMonth(y, m) },
-                        onTodayClick = { viewModel.resetArchiveToToday() }
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        MonthNavigationHeader(
+                            year = uiState.selectedArchiveYear,
+                            month = uiState.selectedArchiveMonth,
+                            onPrevMonth = { viewModel.setArchiveMonth(-1) },
+                            onNextMonth = { viewModel.setArchiveMonth(1) },
+                            onSelectYearMonth = { y, m -> viewModel.setArchiveYearMonth(y, m) },
+                            onTodayClick = { viewModel.resetArchiveToToday() }
+                        )
+                        Text(
+                            text = "Long press a day for options",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = AppTheme.colors.muted,
+                            modifier = Modifier.padding(horizontal = 4.dp)
+                        )
+                    }
                 }
 
                 // Month Calendar Grid with 8th column weekly quota marker
@@ -214,7 +238,30 @@ fun CalendarArchiveScreen(
                         targetDaysPerWeek = uiState.settings.targetDaysPerWeek,
                         selectedDateKey = uiState.selectedCalendarDateKey,
                         onDateSelected = { viewModel.selectCalendarDate(it) },
-                        onDateLongClick = { dateKey -> selectedActionDateKey = dateKey }
+                        onDateLongClick = { dateKey -> selectedActionDateKey = dateKey },
+                        onEditDate = { dateKey ->
+                            val logForDate = uiState.logs.find { it.date == dateKey }
+                            val leaveForDate = uiState.leaves.find { it.date == dateKey }
+                            manualDialogInitialDate = dateKey
+                            manualDialogInitialLog = logForDate
+                            manualDialogInitialLeave = leaveForDate
+                            manualDialogInitialTab = if (leaveForDate != null && logForDate == null) {
+                                ManualLogTab.LEAVE_HOLIDAY
+                            } else {
+                                ManualLogTab.ATTENDANCE
+                            }
+                            showManualDialog = true
+                        },
+                        onDeleteDate = { dateKey ->
+                            val logForDate = uiState.logs.find { it.date == dateKey }
+                            val leaveForDate = uiState.leaves.find { it.date == dateKey }
+                            if (logForDate != null) {
+                                viewModel.deleteLog(dateKey)
+                            }
+                            if (leaveForDate != null) {
+                                viewModel.deleteLeave(leaveForDate.id)
+                            }
+                        }
                     )
                 }
 
@@ -316,6 +363,29 @@ fun CalendarArchiveScreen(
                         },
                         onDateLongClick = { dateKey ->
                             selectedActionDateKey = dateKey
+                        },
+                        onEditDate = { dateKey ->
+                            val logForDate = uiState.logs.find { it.date == dateKey }
+                            val leaveForDate = uiState.leaves.find { it.date == dateKey }
+                            manualDialogInitialDate = dateKey
+                            manualDialogInitialLog = logForDate
+                            manualDialogInitialLeave = leaveForDate
+                            manualDialogInitialTab = if (leaveForDate != null && logForDate == null) {
+                                ManualLogTab.LEAVE_HOLIDAY
+                            } else {
+                                ManualLogTab.ATTENDANCE
+                            }
+                            showManualDialog = true
+                        },
+                        onDeleteDate = { dateKey ->
+                            val logForDate = uiState.logs.find { it.date == dateKey }
+                            val leaveForDate = uiState.leaves.find { it.date == dateKey }
+                            if (logForDate != null) {
+                                viewModel.deleteLog(dateKey)
+                            }
+                            if (leaveForDate != null) {
+                                viewModel.deleteLeave(leaveForDate.id)
+                            }
                         }
                     )
                 }

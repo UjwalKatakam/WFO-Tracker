@@ -287,6 +287,7 @@ fun WfoListRow(
     onClick: (() -> Unit)? = null,
     isDanger: Boolean = false,
     showDivider: Boolean = true,
+    subtitleColor: Color = AppTheme.colors.muted,
     modifier: Modifier = Modifier
 ) {
     val interactiveModifier = if (onClick != null) {
@@ -324,7 +325,7 @@ fun WfoListRow(
                     Text(
                         text = subtitle,
                         style = MaterialTheme.typography.bodyMedium,
-                        color = AppTheme.colors.muted
+                        color = subtitleColor
                     )
                 }
             }

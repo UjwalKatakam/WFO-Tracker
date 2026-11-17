@@ -54,6 +54,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.local.CheckInLog
+import com.example.data.local.LeaveDefaults
 import com.example.data.local.LeaveHoliday
 import com.example.ui.theme.AppTheme
 import com.example.util.DateUtils
@@ -509,13 +510,7 @@ fun ManualLogDialog(
                         }
                         ManualLogTab.LEAVE_HOLIDAY -> {
                             val titleToSave = leaveTitle.ifBlank {
-                                when (leaveType) {
-                                    "holiday" -> "Holiday"
-                                    "sick" -> "Sick"
-                                    "leave" -> "Vacation"
-                                    "wfh" -> "WFH"
-                                    else -> "Excused absence"
-                                }
+                                LeaveDefaults.defaultTitleFor(leaveType)
                             }
                             if (onSaveLeave != null) {
                                 onSaveLeave(leaveFromDate, leaveToDate, leaveType, titleToSave)

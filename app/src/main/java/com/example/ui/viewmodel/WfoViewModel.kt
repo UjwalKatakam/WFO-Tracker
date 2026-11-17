@@ -5,9 +5,12 @@ import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.local.CheckInLog
+import com.example.data.local.LeaveDefaults
 import com.example.data.local.LeaveHoliday
+import com.example.data.local.LeaveRangeResult
 import com.example.data.preferences.WfoSettings
 import com.example.data.repository.WfoRepository
+import com.example.service.GeofencePeriodicWorker
 import com.example.service.PunchTimerService
 import com.example.util.BatteryOptimizationHelper
 import com.example.util.DateUtils
@@ -29,11 +32,12 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
-import java.util.UUID
 
-class WfoViewModel(application: Application) : AndroidViewModel(application) {
+class WfoViewModel @JvmOverloads constructor(
+    application: Application,
+    private val repository: WfoRepository = WfoRepository(application)
+) : AndroidViewModel(application) {
 
-    private val repository = WfoRepository(application)
     private val _uiState = MutableStateFlow(WfoUiState())
     val uiState: StateFlow<WfoUiState> = _uiState.asStateFlow()
 
@@ -69,7 +73,6 @@ class WfoViewModel(application: Application) : AndroidViewModel(application) {
                         leaves = leaves,
                         isPunchedIn = isPunched,
                         activeStartMillis = settings.activePunchStartMillis,
-                        transitOffsetMinutes = settings.lastUsedTransitOffsetMinutes,
                         undoAvailable = settings.lastDeletedUndoJson != null && settings.persistentUndoSummary != null,
                         undoMessage = settings.persistentUndoSummary
                     )
@@ -139,17 +142,6 @@ class WfoViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setTrendMode(mode: TrendMode) {
         _uiState.update { it.copy(trendMode = mode) }
-    }
-
-    fun setTransitOffsetMinutes(mins: Int) {
-        viewModelScope.launch {
-            repository.setLastUsedTransitOffset(mins)
-        }
-        _uiState.update { it.copy(transitOffsetMinutes = mins, customArrivedTimeInput = "") }
-    }
-
-    fun setCustomArrivedTimeInput(text: String) {
-        _uiState.update { it.copy(customArrivedTimeInput = text) }
     }
 
     fun setDashboardMonth(offset: Int) {
@@ -331,7 +323,12 @@ class WfoViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // Punch In / Out Actions
-    fun requestPunchIn(context: Context, bypassGeofence: Boolean = false, initialNote: String? = null) {
+    fun requestPunchIn(
+        context: Context,
+        startMillis: Long = System.currentTimeMillis(),
+        initialNote: String? = null,
+        bypassGeofence: Boolean = false
+    ) {
         viewModelScope.launch {
             val settings = _uiState.value.settings
 
@@ -352,18 +349,13 @@ class WfoViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
 
-            // Calculate start time with offset or custom time
-            val customInput = _uiState.value.customArrivedTimeInput.trim()
-            val startMillis = if (customInput.isNotEmpty()) {
-                parseCustomArrivedTime(customInput) ?: calculateOffsetMillis()
-            } else {
-                calculateOffsetMillis()
-            }
-
             HapticHelper.performClick(context)
             repository.punchIn(startMillis, initialNote)
-            PunchTimerService.start(context, startMillis, settings.minHours)
-            com.example.widget.WfoAppWidgetProvider.updateAllWidgets(context)
+            try {
+                PunchTimerService.start(context, startMillis, settings.minHours)
+                com.example.widget.WfoAppWidgetProvider.updateAllWidgets(context)
+            } catch (_: Exception) {
+            }
             _uiState.update {
                 it.copy(
                     snackbarMessage = if (!initialNote.isNullOrBlank()) "Punched in with note" else "Punched in",
@@ -441,7 +433,12 @@ class WfoViewModel(application: Application) : AndroidViewModel(application) {
             com.example.widget.WfoAppWidgetProvider.updateAllWidgets(context)
 
             val today = DateUtils.todayDateStr()
-            repository.insertLeaveRange(today, today, "wfh", "Approved WFH")
+            repository.insertLeaveRange(
+                today,
+                today,
+                LeaveDefaults.TYPE_WFH,
+                LeaveDefaults.defaultTitleFor(LeaveDefaults.TYPE_WFH)
+            )
             _uiState.update {
                 it.copy(
                     showTimerQuickActionMenu = false,
@@ -449,32 +446,6 @@ class WfoViewModel(application: Application) : AndroidViewModel(application) {
                 )
             }
         }
-    }
-
-    private fun calculateOffsetMillis(): Long {
-        val offsetMins = _uiState.value.transitOffsetMinutes
-        return System.currentTimeMillis() - (offsetMins * 60 * 1000L)
-    }
-
-    private fun parseCustomArrivedTime(input: String): Long? {
-        val clean = input.trim().uppercase()
-        val regex = Regex("^(\\d{1,2}):(\\d{2})\\s*(AM|PM)?$")
-        val match = regex.find(clean) ?: return null
-
-        var h = match.groupValues[1].toIntOrNull() ?: return null
-        val m = match.groupValues[2].toIntOrNull() ?: return null
-        val ampm = match.groupValues.getOrNull(3)
-
-        if (ampm == "PM" && h < 12) h += 12
-        if (ampm == "AM" && h == 12) h = 0
-
-        val cal = Calendar.getInstance().apply {
-            set(Calendar.HOUR_OF_DAY, h)
-            set(Calendar.MINUTE, m)
-            set(Calendar.SECOND, 0)
-            set(Calendar.MILLISECOND, 0)
-        }
-        return cal.timeInMillis
     }
 
     fun requestPunchOut(context: Context, addTransitMinutes: Int = 0) {
@@ -544,13 +515,60 @@ class WfoViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     // Leave & Holiday CRUD
-    fun addLeaveRange(from: String, to: String, type: String, title: String) {
+    fun addLeaveRange(
+        from: String,
+        to: String,
+        type: String,
+        title: String,
+        onResult: ((Result<LeaveRangeResult>) -> Unit)? = null
+    ) {
         viewModelScope.launch {
-            val count = repository.insertLeaveRange(from, to, type, title)
-            _uiState.update {
-                it.copy(snackbarMessage = "Saved $count day(s) of ${title.ifBlank { type }}")
+            val result = repository.insertLeaveRange(from, to, type, title)
+            result.onSuccess { stats ->
+                _uiState.update {
+                    it.copy(snackbarMessage = formatLeaveRangeMessage(stats))
+                }
+            }
+            onResult?.invoke(result)
+        }
+    }
+
+    fun importHolidaysBatch(
+        holidays: List<LeaveHoliday>,
+        onInserted: ((List<LeaveHoliday>) -> Unit)? = null
+    ) {
+        viewModelScope.launch {
+            val result = repository.insertLeavesBatch(holidays)
+            result.onSuccess { inserted ->
+                onInserted?.invoke(inserted)
             }
         }
+    }
+
+    fun deleteLeavesBatch(ids: List<String>) {
+        viewModelScope.launch {
+            repository.deleteLeavesByIds(ids)
+        }
+    }
+
+    private fun formatLeaveRangeMessage(stats: LeaveRangeResult): String {
+        fun dayWord(n: Int) = if (n == 1) "day" else "days"
+        fun weekendWord(n: Int) = if (n == 1) "weekend day" else "weekend days"
+        fun dupWord(n: Int) = if (n == 1) "duplicate" else "duplicates"
+
+        val parts = mutableListOf<String>()
+        parts.add(if (stats.added > 0) "Added ${stats.added} ${dayWord(stats.added)}." else "No days added.")
+        val skippedParts = mutableListOf<String>()
+        if (stats.skippedWeekends > 0) {
+            skippedParts.add("${stats.skippedWeekends} ${weekendWord(stats.skippedWeekends)}")
+        }
+        if (stats.skippedDuplicates > 0) {
+            skippedParts.add("${stats.skippedDuplicates} ${dupWord(stats.skippedDuplicates)}")
+        }
+        if (skippedParts.isNotEmpty()) {
+            parts.add("Skipped ${skippedParts.joinToString(" and ")}.")
+        }
+        return parts.joinToString(" ")
     }
 
     fun deleteLeave(id: String) {
@@ -576,10 +594,17 @@ class WfoViewModel(application: Application) : AndroidViewModel(application) {
         passiveGeofenceArrivalEnabled: Boolean = true,
         departureReminderEnabled: Boolean = true,
         departureReminderHours: Double = 9.0,
-        autoMuteHolidays: Boolean = true
+        autoMuteHolidays: Boolean = true,
+        showConfirmation: Boolean = false
     ) {
         viewModelScope.launch {
-            repository.updateSettings(
+            val prev = _uiState.value.settings
+            val geofenceParamsChanged = prev.lat != lat ||
+                prev.lon != lon ||
+                prev.radiusKm != radiusKm ||
+                prev.passiveGeofenceArrivalEnabled != passiveGeofenceArrivalEnabled
+
+            val savedSecurely = repository.updateSettings(
                 minHours = minHours,
                 targetDaysPerWeek = targetDaysPerWeek,
                 shiftStart = shiftStart,
@@ -596,11 +621,34 @@ class WfoViewModel(application: Application) : AndroidViewModel(application) {
                 departureReminderHours = departureReminderHours,
                 autoMuteHolidays = autoMuteHolidays
             )
-            _uiState.update { it.copy(snackbarMessage = "Settings updated") }
+
+            if (geofenceParamsChanged) {
+                try {
+                    val appContext = getApplication<Application>()
+                    if (passiveGeofenceArrivalEnabled) {
+                        GeofencePeriodicWorker.reschedule(appContext)
+                    } else {
+                        GeofencePeriodicWorker.cancel(appContext)
+                    }
+                } catch (_: Exception) {
+                }
+            }
+
+            val nextMsg = when {
+                !savedSecurely -> "Token could not be saved securely"
+                showConfirmation -> "Settings updated"
+                else -> null
+            }
+            if (nextMsg != null) {
+                _uiState.update { it.copy(snackbarMessage = nextMsg) }
+            }
         }
     }
 
-    fun updateSettings(settings: com.example.data.preferences.WfoSettings) {
+    fun updateSettings(
+        settings: WfoSettings,
+        showConfirmation: Boolean = false
+    ) {
         updateSettings(
             minHours = settings.minHours,
             targetDaysPerWeek = settings.targetDaysPerWeek,
@@ -616,7 +664,8 @@ class WfoViewModel(application: Application) : AndroidViewModel(application) {
             passiveGeofenceArrivalEnabled = settings.passiveGeofenceArrivalEnabled,
             departureReminderEnabled = settings.departureReminderEnabled,
             departureReminderHours = settings.departureReminderHours,
-            autoMuteHolidays = settings.autoMuteHolidays
+            autoMuteHolidays = settings.autoMuteHolidays,
+            showConfirmation = showConfirmation
         )
     }
 

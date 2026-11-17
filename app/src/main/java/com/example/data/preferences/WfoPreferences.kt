@@ -38,12 +38,16 @@ data class WfoSettings(
     val autoMuteHolidays: Boolean = true,
     val activePunchStartMillis: Long? = null,
     val lastDeletedUndoJson: String? = null,
-    val lastUsedTransitOffsetMinutes: Int = 15,
     val batteryOptNudgeDismissed: Boolean = false,
-    val persistentUndoSummary: String? = null
+    val persistentUndoSummary: String? = null,
+    val tokenUnreadable: Boolean = false
 )
 
-class WfoPreferences(private val context: Context) {
+class WfoPreferences(
+    private val context: Context,
+    private val encryptFn: (String) -> String? = SecurePreferencesHelper::encrypt,
+    private val decryptFn: (String) -> String? = SecurePreferencesHelper::decrypt
+) {
 
     private object Keys {
         val MIN_HOURS = doublePreferencesKey("min_hours")
@@ -65,7 +69,6 @@ class WfoPreferences(private val context: Context) {
         val AUTO_MUTE_HOLIDAYS = booleanPreferencesKey("auto_mute_holidays")
         val ACTIVE_PUNCH_START = longPreferencesKey("active_punch_start")
         val LAST_DELETED_UNDO = stringPreferencesKey("last_deleted_undo")
-        val LAST_TRANSIT_OFFSET = intPreferencesKey("last_transit_offset_mins")
         val BATTERY_OPT_DISMISSED = booleanPreferencesKey("battery_opt_dismissed")
         val PERSISTENT_UNDO_SUMMARY = stringPreferencesKey("persistent_undo_summary")
     }
@@ -81,16 +84,21 @@ class WfoPreferences(private val context: Context) {
 
     /**
      * One-time migration: when legacy plaintext git_token exists in preferences,
-     * encrypt it into enc_git_token and remove the legacy key from disk.
+     * encrypt it into enc_git_token and remove the legacy key only if encryption succeeds.
      */
     suspend fun migrateLegacyTokenIfNeeded() {
         context.dataStore.edit { prefs ->
             if (prefs.contains(Keys.LEGACY_GIT_TOKEN)) {
                 val legacy = prefs[Keys.LEGACY_GIT_TOKEN] ?: ""
                 if (legacy.isNotEmpty() && prefs[Keys.ENCRYPTED_GIT_TOKEN].isNullOrEmpty()) {
-                    prefs[Keys.ENCRYPTED_GIT_TOKEN] = SecurePreferencesHelper.encrypt(legacy.trim())
+                    val encrypted = encryptFn(legacy.trim())
+                    if (encrypted != null) {
+                        prefs[Keys.ENCRYPTED_GIT_TOKEN] = encrypted
+                        prefs.remove(Keys.LEGACY_GIT_TOKEN)
+                    }
+                } else {
+                    prefs.remove(Keys.LEGACY_GIT_TOKEN)
                 }
-                prefs.remove(Keys.LEGACY_GIT_TOKEN)
             }
         }
     }
@@ -98,11 +106,19 @@ class WfoPreferences(private val context: Context) {
     val settingsFlow: Flow<WfoSettings> = context.dataStore.data.map { prefs ->
         val activeStart = prefs[Keys.ACTIVE_PUNCH_START]
 
-        // Transparent token decryption with fallback migration
         val encryptedToken = prefs[Keys.ENCRYPTED_GIT_TOKEN]
         val legacyToken = prefs[Keys.LEGACY_GIT_TOKEN] ?: ""
+        var tokenUnreadable = false
         val decryptedToken = when {
-            !encryptedToken.isNullOrEmpty() -> SecurePreferencesHelper.decrypt(encryptedToken)
+            !encryptedToken.isNullOrEmpty() -> {
+                val dec = decryptFn(encryptedToken)
+                if (dec == null) {
+                    tokenUnreadable = true
+                    ""
+                } else {
+                    dec
+                }
+            }
             legacyToken.isNotEmpty() -> legacyToken
             else -> ""
         }
@@ -126,9 +142,9 @@ class WfoPreferences(private val context: Context) {
             autoMuteHolidays = prefs[Keys.AUTO_MUTE_HOLIDAYS] ?: true,
             activePunchStartMillis = if (activeStart != null && activeStart > 0) activeStart else null,
             lastDeletedUndoJson = prefs[Keys.LAST_DELETED_UNDO],
-            lastUsedTransitOffsetMinutes = prefs[Keys.LAST_TRANSIT_OFFSET] ?: 15,
             batteryOptNudgeDismissed = prefs[Keys.BATTERY_OPT_DISMISSED] ?: false,
-            persistentUndoSummary = prefs[Keys.PERSISTENT_UNDO_SUMMARY]
+            persistentUndoSummary = prefs[Keys.PERSISTENT_UNDO_SUMMARY],
+            tokenUnreadable = tokenUnreadable
         )
     }
 
@@ -148,9 +164,10 @@ class WfoPreferences(private val context: Context) {
         departureReminderEnabled: Boolean = true,
         departureReminderHours: Double = 9.0,
         autoMuteHolidays: Boolean = true
-    ) {
+    ): Boolean {
         val trimmedToken = gitToken.trim()
-        val encryptedToken = SecurePreferencesHelper.encrypt(trimmedToken)
+        val encryptedToken: String? = if (trimmedToken.isEmpty()) "" else encryptFn(trimmedToken)
+        val tokenSavedSecurely = encryptedToken != null
 
         context.dataStore.edit { prefs ->
             prefs[Keys.MIN_HOURS] = minHours
@@ -161,9 +178,10 @@ class WfoPreferences(private val context: Context) {
             prefs[Keys.LON] = lon
             prefs[Keys.RADIUS_KM] = radiusKm
             prefs[Keys.EMPLOYEE_NAME] = employeeName
-            prefs[Keys.ENCRYPTED_GIT_TOKEN] = encryptedToken
-            // Remove legacy plaintext token from disk
-            prefs.remove(Keys.LEGACY_GIT_TOKEN)
+            if (encryptedToken != null) {
+                prefs[Keys.ENCRYPTED_GIT_TOKEN] = encryptedToken
+                prefs.remove(Keys.LEGACY_GIT_TOKEN)
+            }
             prefs[Keys.GIST_ID] = gistId.trim()
             prefs[Keys.NOTIFY_ON_TARGET] = notifyOnTarget
             prefs[Keys.GPS_VERIFICATION] = gpsVerificationEnabled
@@ -172,6 +190,7 @@ class WfoPreferences(private val context: Context) {
             prefs[Keys.DEPARTURE_REMINDER_HOURS] = departureReminderHours
             prefs[Keys.AUTO_MUTE_HOLIDAYS] = autoMuteHolidays
         }
+        return tokenSavedSecurely
     }
 
     suspend fun setActivePunchStart(startMillis: Long?) {
@@ -191,12 +210,6 @@ class WfoPreferences(private val context: Context) {
             } else {
                 prefs[Keys.LAST_DELETED_UNDO] = undoJson
             }
-        }
-    }
-
-    suspend fun setLastUsedTransitOffset(offsetMins: Int) {
-        context.dataStore.edit { prefs ->
-            prefs[Keys.LAST_TRANSIT_OFFSET] = offsetMins
         }
     }
 

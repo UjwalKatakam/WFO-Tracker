@@ -62,7 +62,6 @@ import com.example.ui.theme.AppTheme
 import com.example.ui.viewmodel.WfoUiState
 import com.example.ui.viewmodel.WfoViewModel
 import java.text.DateFormatSymbols
-import java.util.Calendar
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -262,11 +261,17 @@ fun DashboardScreen(
     if (showLeavesDialog) {
         LeavesManagementDialog(
             leaves = uiState.leaves,
-            onAddLeaveRange = { from, to, type, title ->
-                viewModel.addLeaveRange(from, to, type, title)
+            onAddLeaveRange = { from, to, type, title, onResult ->
+                viewModel.addLeaveRange(from, to, type, title, onResult)
             },
             onDeleteLeave = { id ->
                 viewModel.deleteLeave(id)
+            },
+            onImportHolidays = { holidays, onInserted ->
+                viewModel.importHolidaysBatch(holidays, onInserted)
+            },
+            onDeleteLeavesBatch = { ids ->
+                viewModel.deleteLeavesBatch(ids)
             },
             onDismiss = { showLeavesDialog = false }
         )
@@ -345,30 +350,12 @@ fun DashboardScreen(
     // Arrived Earlier Bottom Sheet
     if (showArrivedEarlierSheet) {
         ArrivedEarlierBottomSheet(
-            selectedOffsetMinutes = uiState.transitOffsetMinutes,
-            customTimeInput = uiState.customArrivedTimeInput,
-            onOffsetSelected = { mins ->
-                viewModel.setTransitOffsetMinutes(mins)
-            },
-            onPickTimeClick = {
-                showNativeTimePicker(context, uiState.customArrivedTimeInput) { picked ->
-                    viewModel.setCustomArrivedTimeInput(picked)
-                }
-            },
-            onClearCustomTime = {
-                viewModel.setCustomArrivedTimeInput("")
-            },
-            onConfirmPunchIn = {
+            onConfirmPunchIn = { startMillis ->
                 showArrivedEarlierSheet = false
-                viewModel.requestPunchIn(context)
-                viewModel.setTransitOffsetMinutes(0)
-                viewModel.setCustomArrivedTimeInput("")
+                viewModel.requestPunchIn(context, startMillis = startMillis)
             },
             onDismissRequest = {
-                // Correctness 1: reset transit offset to 0 and clear custom time when dismissed
                 showArrivedEarlierSheet = false
-                viewModel.setTransitOffsetMinutes(0)
-                viewModel.setCustomArrivedTimeInput("")
             }
         )
     }
@@ -432,8 +419,6 @@ fun DashboardScreen(
                 targetReached = uiState.targetReached,
                 targetTimeFormatted = uiState.targetTimeFormatted,
                 onPunchInClick = {
-                    viewModel.setTransitOffsetMinutes(0)
-                    viewModel.setCustomArrivedTimeInput("")
                     viewModel.requestPunchIn(context)
                 },
                 onPunchOutClick = { viewModel.requestPunchOut(context) },
@@ -497,30 +482,4 @@ fun DashboardScreen(
             Spacer(modifier = Modifier.height(16.dp))
         }
     }
-}
-
-/**
- * Native Android TimePickerDialog helper
- */
-private fun showNativeTimePicker(
-    context: Context,
-    initialTime: String,
-    onTimeSelected: (String) -> Unit
-) {
-    val parts = initialTime.split(":")
-    val cal = Calendar.getInstance()
-    val initialHour = parts.getOrNull(0)?.toIntOrNull() ?: cal.get(Calendar.HOUR_OF_DAY)
-    val initialMinute = parts.getOrNull(1)?.toIntOrNull() ?: cal.get(Calendar.MINUTE)
-
-    val timePicker = android.app.TimePickerDialog(
-        context,
-        { _, hourOfDay, minute ->
-            val formatted = String.format(Locale.US, "%02d:%02d", hourOfDay, minute)
-            onTimeSelected(formatted)
-        },
-        initialHour,
-        initialMinute,
-        false
-    )
-    timePicker.show()
 }

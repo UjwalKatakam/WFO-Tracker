@@ -35,8 +35,6 @@ data class WfoUiState(
     val countdownMode: Boolean = false,
     val targetReached: Boolean = false,
     val targetTimeFormatted: String = "",
-    val transitOffsetMinutes: Int = 15,
-    val customArrivedTimeInput: String = "",
     val selectedCalendarDateKey: String = DateUtils.todayDateStr(),
     val selectedArchiveYear: Int = 2026,
     val selectedArchiveMonth: Int = Calendar.getInstance().get(Calendar.MONTH),

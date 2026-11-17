@@ -36,12 +36,14 @@ class GeofencePeriodicWorker(
                 return Result.success()
             }
 
-            // Check if today is registered as an approved Holiday / Leave exclusion
+            // Check if today is registered as an approved Holiday / Sick / Vacation exclusion (not WFH)
             if (settings.autoMuteHolidays) {
                 val db = com.example.data.local.WfoDatabase.getInstance(appContext)
                 val allLeaves = db.leaveHolidayDao().getAllLeaves().first()
                 val todayStr = com.example.util.DateUtils.todayDateStr()
-                val isExcludedDay = allLeaves.any { it.date == todayStr }
+                val isExcludedDay = allLeaves.any {
+                    it.date == todayStr && it.type in com.example.data.local.LeaveDefaults.mutedGeofenceTypes
+                }
                 if (isExcludedDay) {
                     return Result.success()
                 }
@@ -80,6 +82,22 @@ class GeofencePeriodicWorker(
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 WORK_TAG,
                 ExistingPeriodicWorkPolicy.KEEP,
+                request
+            )
+        }
+
+        fun reschedule(context: Context) {
+            val constraints = Constraints.Builder()
+                .setRequiredNetworkType(NetworkType.NOT_REQUIRED)
+                .build()
+
+            val request = PeriodicWorkRequestBuilder<GeofencePeriodicWorker>(15, TimeUnit.MINUTES)
+                .setConstraints(constraints)
+                .build()
+
+            WorkManager.getInstance(context).enqueueUniquePeriodicWork(
+                WORK_TAG,
+                ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE,
                 request
             )
         }

@@ -2,7 +2,9 @@ package com.example.data.repository
 
 import android.content.Context
 import com.example.data.local.CheckInLog
+import com.example.data.local.LeaveDefaults
 import com.example.data.local.LeaveHoliday
+import com.example.data.local.LeaveRangeResult
 import com.example.data.local.WfoDatabase
 import com.example.data.network.GistFileContent
 import com.example.data.network.GistUpdateRequest
@@ -15,7 +17,9 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import java.text.ParsePosition
 import java.text.SimpleDateFormat
+import java.util.Calendar
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
@@ -59,46 +63,112 @@ class WfoRepository(
         endDateStr: String,
         type: String,
         title: String
-    ): Int {
-        return withContext(Dispatchers.IO) {
-            val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US)
-            val startCal = java.util.Calendar.getInstance().apply { time = sdf.parse(startDateStr) ?: Date() }
-            val endCal = java.util.Calendar.getInstance().apply { time = sdf.parse(endDateStr) ?: Date() }
+    ): Result<LeaveRangeResult> = withContext(Dispatchers.IO) {
+        val strictRegex = Regex("^\\d{4}-\\d{2}-\\d{2}$")
+        val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply {
+            isLenient = false
+        }
 
-            if (endCal.before(startCal)) {
-                val temp = startCal.time
-                startCal.time = endCal.time
-                endCal.time = temp
+        fun parseStrictDate(raw: String): Date? {
+            val trimmed = raw.trim()
+            if (!strictRegex.matches(trimmed)) return null
+            val pos = ParsePosition(0)
+            val parsed = sdf.parse(trimmed, pos)
+            if (parsed == null || pos.index != trimmed.length || pos.errorIndex != -1) {
+                return null
             }
+            return parsed
+        }
 
-            val leavesToAdd = mutableListOf<LeaveHoliday>()
-            while (!startCal.after(endCal)) {
-                val dayOfWeek = startCal.get(java.util.Calendar.DAY_OF_WEEK)
-                // Exclude weekends (Sat & Sun) as they are already default non-working days
-                if (dayOfWeek != java.util.Calendar.SATURDAY && dayOfWeek != java.util.Calendar.SUNDAY) {
-                    val dateKey = sdf.format(startCal.time)
+        val parsedStart = parseStrictDate(startDateStr)
+            ?: return@withContext Result.failure(IllegalArgumentException("Invalid start date: $startDateStr"))
+        val parsedEnd = parseStrictDate(endDateStr)
+            ?: return@withContext Result.failure(IllegalArgumentException("Invalid end date: $endDateStr"))
+
+        val startCal = Calendar.getInstance().apply { time = parsedStart }
+        val endCal = Calendar.getInstance().apply { time = parsedEnd }
+
+        if (endCal.before(startCal)) {
+            val temp = startCal.time
+            startCal.time = endCal.time
+            endCal.time = temp
+        }
+
+        val existingLeaves = database.leaveHolidayDao().getAllLeaves().first()
+        val existingIds = existingLeaves.map { it.id }.toMutableSet()
+        val existingDateTypes = existingLeaves.map { "${it.type}-${it.date}" }.toMutableSet()
+
+        val resolvedTitle = title.trim().ifBlank { LeaveDefaults.defaultTitleFor(type) }
+        val leavesToAdd = mutableListOf<LeaveHoliday>()
+        var skippedWeekends = 0
+        var skippedDuplicates = 0
+
+        while (!startCal.after(endCal)) {
+            val dayOfWeek = startCal.get(Calendar.DAY_OF_WEEK)
+            // Exclude weekends (Sat & Sun) as they are already default non-working days
+            if (dayOfWeek == Calendar.SATURDAY || dayOfWeek == Calendar.SUNDAY) {
+                skippedWeekends++
+            } else {
+                val dateKey = sdf.format(startCal.time)
+                val deterministicId = "$type-$dateKey"
+                if (deterministicId in existingIds || deterministicId in existingDateTypes) {
+                    skippedDuplicates++
+                } else {
+                    existingIds.add(deterministicId)
+                    existingDateTypes.add(deterministicId)
                     leavesToAdd.add(
                         LeaveHoliday(
-                            id = UUID.randomUUID().toString(),
+                            id = deterministicId,
                             type = type,
-                            title = title.ifBlank {
-                                when (type) {
-                                    "holiday" -> "Public Holiday"
-                                    "sick" -> "Sick Leave"
-                                    else -> "Annual Leave"
-                                }
-                            },
+                            title = resolvedTitle,
                             date = dateKey
                         )
                     )
                 }
-                startCal.add(java.util.Calendar.DAY_OF_MONTH, 1)
             }
+            startCal.add(Calendar.DAY_OF_MONTH, 1)
+        }
 
-            if (leavesToAdd.isNotEmpty()) {
-                database.leaveHolidayDao().insertAll(leavesToAdd)
+        if (leavesToAdd.isNotEmpty()) {
+            database.leaveHolidayDao().insertAll(leavesToAdd)
+        }
+
+        Result.success(
+            LeaveRangeResult(
+                added = leavesToAdd.size,
+                skippedWeekends = skippedWeekends,
+                skippedDuplicates = skippedDuplicates
+            )
+        )
+    }
+
+    suspend fun insertLeavesBatch(leaves: List<LeaveHoliday>): Result<List<LeaveHoliday>> = withContext(Dispatchers.IO) {
+        val existing = database.leaveHolidayDao().getAllLeaves().first()
+        val existingKeys = existing.map { "${it.type}-${it.date}" }.toMutableSet()
+        val toInsert = mutableListOf<LeaveHoliday>()
+        for (leave in leaves) {
+            val key = "${leave.type}-${leave.date}"
+            if (key !in existingKeys) {
+                existingKeys.add(key)
+                toInsert.add(
+                    leave.copy(
+                        id = key,
+                        title = leave.title.trim().ifBlank { LeaveDefaults.defaultTitleFor(leave.type) }
+                    )
+                )
             }
-            leavesToAdd.size
+        }
+        if (toInsert.isNotEmpty()) {
+            database.leaveHolidayDao().insertAll(toInsert)
+        }
+        Result.success(toInsert)
+    }
+
+    suspend fun deleteLeavesByIds(ids: List<String>) {
+        withContext(Dispatchers.IO) {
+            for (id in ids) {
+                database.leaveHolidayDao().deleteById(id)
+            }
         }
     }
 
@@ -124,8 +194,8 @@ class WfoRepository(
         departureReminderEnabled: Boolean = true,
         departureReminderHours: Double = 9.0,
         autoMuteHolidays: Boolean = true
-    ) {
-        preferences.updateSettings(
+    ): Boolean {
+        return preferences.updateSettings(
             minHours = minHours,
             targetDaysPerWeek = targetDaysPerWeek,
             shiftStart = shiftStart,
@@ -237,10 +307,6 @@ class WfoRepository(
     suspend fun dismissUndo() {
         preferences.setPersistentUndoSummary(null)
         preferences.setLastDeletedUndo(null)
-    }
-
-    suspend fun setLastUsedTransitOffset(offsetMins: Int) {
-        preferences.setLastUsedTransitOffset(offsetMins)
     }
 
     suspend fun setBatteryOptDismissed(dismissed: Boolean) {

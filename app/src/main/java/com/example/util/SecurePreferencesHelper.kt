@@ -4,6 +4,7 @@ import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import androidx.annotation.VisibleForTesting
 import java.security.KeyStore
 import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
@@ -23,7 +24,11 @@ object SecurePreferencesHelper {
     private const val GCM_IV_LENGTH_BYTES = 12
     private const val GCM_TAG_LENGTH_BITS = 128
 
+    @VisibleForTesting
+    internal var secretKeyProvider: (() -> SecretKey)? = null
+
     private fun getOrCreateSecretKey(): SecretKey {
+        secretKeyProvider?.let { return it() }
         val keyStore = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
         if (keyStore.containsAlias(KEY_ALIAS)) {
             val keyEntry = keyStore.getEntry(KEY_ALIAS, null) as? KeyStore.SecretKeyEntry
@@ -48,9 +53,9 @@ object SecurePreferencesHelper {
 
     /**
      * Encrypts plaintext using AES/GCM and returns a Base64 encoded string
-     * containing the IV prepended to the ciphertext.
+     * containing the IV prepended to the ciphertext, or null on any failure.
      */
-    fun encrypt(plainText: String): String {
+    fun encrypt(plainText: String): String? {
         if (plainText.isEmpty()) return ""
         return try {
             val key = getOrCreateSecretKey()
@@ -66,20 +71,19 @@ object SecurePreferencesHelper {
 
             Base64.encodeToString(combined, Base64.NO_WRAP)
         } catch (_: Exception) {
-            // Fallback gracefully in case of emulator keystore anomalies
-            plainText
+            null
         }
     }
 
     /**
-     * Decrypts Base64 encoded (IV + Ciphertext) string back to plaintext.
-     * If the string is unencrypted plaintext (legacy), returns it as-is.
+     * Decrypts Base64 encoded (IV + Ciphertext) string back to plaintext,
+     * or returns null on any failure. Never returns the raw input on error.
      */
-    fun decrypt(encryptedBase64: String): String {
+    fun decrypt(encryptedBase64: String): String? {
         if (encryptedBase64.isEmpty()) return ""
         return try {
             val combined = Base64.decode(encryptedBase64, Base64.NO_WRAP)
-            if (combined.size <= GCM_IV_LENGTH_BYTES) return encryptedBase64
+            if (combined.size <= GCM_IV_LENGTH_BYTES) return null
 
             val iv = ByteArray(GCM_IV_LENGTH_BYTES)
             System.arraycopy(combined, 0, iv, 0, GCM_IV_LENGTH_BYTES)
@@ -96,8 +100,7 @@ object SecurePreferencesHelper {
             val decryptedBytes = cipher.doFinal(cipherText)
             String(decryptedBytes, Charsets.UTF_8)
         } catch (_: Exception) {
-            // If decrypt fails, the value might be legacy plaintext
-            encryptedBase64
+            null
         }
     }
 }

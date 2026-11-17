@@ -57,8 +57,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -365,6 +367,8 @@ fun MonthCalendarCard(
     onSelectMonth: ((year: Int, month: Int) -> Unit)? = null,
     onTodayClick: (() -> Unit)? = null,
     onDateLongClick: ((String) -> Unit)? = null,
+    onEditDate: ((String) -> Unit)? = null,
+    onDeleteDate: ((String) -> Unit)? = null,
     showHint: Boolean = false,
     modifier: Modifier = Modifier
 ) {
@@ -471,7 +475,7 @@ fun MonthCalendarCard(
                             val isLeaveOrHoliday = leave != null
 
                             val cellBg = when {
-                                isLeaveOrHoliday -> AppTheme.colors.raised
+                                isLeaveOrHoliday -> AppTheme.colors.rule.copy(alpha = 0.45f)
                                 isValidWfo -> AppTheme.colors.present.copy(alpha = if (AppTheme.colors.isDark) 0.16f else 0.12f)
                                 isShortWfo -> AppTheme.colors.short.copy(alpha = if (AppTheme.colors.isDark) 0.14f else 0.10f)
                                 isWeekend -> AppTheme.colors.ground.copy(alpha = 0.5f)
@@ -507,6 +511,8 @@ fun MonthCalendarCard(
                                 if (isSelected) append("selected")
                             }
 
+                            val hasEntry = log != null || leave != null
+
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
@@ -516,7 +522,29 @@ fun MonthCalendarCard(
                                     .background(cellBg)
                                     .then(borderModifier)
                                     .then(clickModifier)
-                                    .semantics { contentDescription = cellDesc },
+                                    .semantics {
+                                        contentDescription = cellDesc
+                                        if (hasEntry) {
+                                            customActions = listOf(
+                                                CustomAccessibilityAction("Edit") {
+                                                    if (onEditDate != null) {
+                                                        onEditDate(dateKey)
+                                                    } else {
+                                                        onDateLongClick?.invoke(dateKey)
+                                                    }
+                                                    true
+                                                },
+                                                CustomAccessibilityAction("Delete") {
+                                                    if (onDeleteDate != null) {
+                                                        onDeleteDate(dateKey)
+                                                    } else {
+                                                        onDateLongClick?.invoke(dateKey)
+                                                    }
+                                                    true
+                                                }
+                                            )
+                                        }
+                                    },
                                 contentAlignment = Alignment.Center
                             ) {
                                 Column(
@@ -673,6 +701,8 @@ fun YearMatrixMonthCard(
     onDateSelected: (String) -> Unit,
     onOpenMonthClick: (year: Int, month: Int) -> Unit,
     onDateLongClick: ((String) -> Unit)? = null,
+    onEditDate: ((String) -> Unit)? = null,
+    onDeleteDate: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val cal = remember(year, month) {
@@ -788,7 +818,7 @@ fun YearMatrixMonthCard(
                             val isShortWfo = log != null && !isValidWfo
 
                             val cellBg = when {
-                                leave != null -> AppTheme.colors.raised
+                                leave != null -> AppTheme.colors.rule.copy(alpha = 0.45f)
                                 isValidWfo -> AppTheme.colors.present.copy(alpha = if (AppTheme.colors.isDark) 0.16f else 0.12f)
                                 isShortWfo -> AppTheme.colors.short.copy(alpha = if (AppTheme.colors.isDark) 0.14f else 0.10f)
                                 isWeekend -> AppTheme.colors.ground.copy(alpha = 0.5f)
@@ -812,6 +842,16 @@ fun YearMatrixMonthCard(
                                 Modifier.clickable { onDateSelected(dateKey) }
                             }
 
+                            val hasEntry = log != null || leave != null
+                            val miniCellDesc = buildString {
+                                append("Day $dayNumber, ")
+                                if (leave != null) append("leave ${leave.type}")
+                                else if (isValidWfo) append("office day")
+                                else if (isShortWfo) append("under minimum")
+                                else if (isWeekend) append("weekend")
+                                else append("unlogged")
+                            }
+
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
@@ -820,21 +860,64 @@ fun YearMatrixMonthCard(
                                     .clip(CalendarCellShape)
                                     .background(cellBg)
                                     .then(borderModifier)
-                                    .then(clickModifier),
+                                    .then(clickModifier)
+                                    .semantics {
+                                        contentDescription = miniCellDesc
+                                        if (hasEntry) {
+                                            customActions = listOf(
+                                                CustomAccessibilityAction("Edit") {
+                                                    if (onEditDate != null) {
+                                                        onEditDate(dateKey)
+                                                    } else {
+                                                        onDateLongClick?.invoke(dateKey)
+                                                    }
+                                                    true
+                                                },
+                                                CustomAccessibilityAction("Delete") {
+                                                    if (onDeleteDate != null) {
+                                                        onDeleteDate(dateKey)
+                                                    } else {
+                                                        onDateLongClick?.invoke(dateKey)
+                                                    }
+                                                    true
+                                                }
+                                            )
+                                        }
+                                    },
                                 contentAlignment = Alignment.Center
                             ) {
-                                Text(
-                                    text = "$dayNumber",
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = when {
-                                        isValidWfo -> AppTheme.colors.present
-                                        isShortWfo -> AppTheme.colors.short
-                                        leave != null -> AppTheme.colors.ink
-                                        isWeekend -> AppTheme.colors.muted.copy(alpha = 0.5f)
-                                        else -> AppTheme.colors.ink
-                                    },
-                                    fontSize = 12.sp
-                                )
+                                if (leave != null) {
+                                    val (leaveIcon, _) = getLeaveIconAndLetter(leave.type)
+                                    Column(
+                                        horizontalAlignment = Alignment.CenterHorizontally,
+                                        verticalArrangement = Arrangement.Center
+                                    ) {
+                                        Text(
+                                            text = "$dayNumber",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = AppTheme.colors.ink,
+                                            fontSize = 12.sp
+                                        )
+                                        Icon(
+                                            imageVector = leaveIcon,
+                                            contentDescription = null,
+                                            tint = AppTheme.colors.muted,
+                                            modifier = Modifier.size(10.dp)
+                                        )
+                                    }
+                                } else {
+                                    Text(
+                                        text = "$dayNumber",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = when {
+                                            isValidWfo -> AppTheme.colors.present
+                                            isShortWfo -> AppTheme.colors.short
+                                            isWeekend -> AppTheme.colors.muted.copy(alpha = 0.5f)
+                                            else -> AppTheme.colors.ink
+                                        },
+                                        fontSize = 12.sp
+                                    )
+                                }
                             }
                         } else {
                             Spacer(

@@ -32,6 +32,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -40,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -52,6 +54,7 @@ import com.example.ui.theme.CalendarCellShape
 import com.example.ui.theme.SurfaceGroupShape
 import com.example.ui.viewmodel.DayStreakDetail
 import com.example.util.DateUtils
+import java.util.Calendar
 import java.util.Locale
 
 // ============================================================================
@@ -243,19 +246,32 @@ fun DashboardPunchControl(
 
 /**
  * Bottom sheet for backdating arrival time with transit offsets or time picker.
- * Uses FlowRow for chips and explicit reset upon dismissal.
+ * Holds ephemeral selection in local remember state (discarded on dismiss)
+ * and rejects picked clock times that fall in the future.
  */
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ArrivedEarlierBottomSheet(
-    selectedOffsetMinutes: Int,
-    customTimeInput: String,
-    onOffsetSelected: (Int) -> Unit,
-    onPickTimeClick: () -> Unit,
-    onClearCustomTime: () -> Unit,
-    onConfirmPunchIn: () -> Unit,
+    onConfirmPunchIn: (startMillis: Long) -> Unit,
     onDismissRequest: () -> Unit
 ) {
+    val context = LocalContext.current
+    var selectedOffsetMinutes by remember { mutableIntStateOf(0) }
+    var customTimeInput by remember { mutableStateOf("") }
+    var errorMsg by remember { mutableStateOf<String?>(null) }
+
+    fun parseTodayClockMillis(hhMm: String): Long? {
+        val parts = hhMm.split(":")
+        val h = parts.getOrNull(0)?.toIntOrNull() ?: return null
+        val m = parts.getOrNull(1)?.toIntOrNull() ?: return null
+        return Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, h)
+            set(Calendar.MINUTE, m)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }.timeInMillis
+    }
+
     WfoBottomSheet(
         onDismissRequest = onDismissRequest,
         title = "Arrived earlier?"
@@ -272,7 +288,6 @@ fun ArrivedEarlierBottomSheet(
                 color = AppTheme.colors.muted
             )
 
-            // FlowRow chip layout with standardized "Now", "5 min", "10 min", "15 min"
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -283,7 +298,11 @@ fun ArrivedEarlierBottomSheet(
                     WfoChip(
                         text = label,
                         selected = isSelected,
-                        onClick = { onOffsetSelected(mins) }
+                        onClick = {
+                            selectedOffsetMinutes = mins
+                            customTimeInput = ""
+                            errorMsg = null
+                        }
                     )
                 }
             }
@@ -302,15 +321,25 @@ fun ArrivedEarlierBottomSheet(
             Surface(
                 shape = SurfaceGroupShape,
                 color = AppTheme.colors.ground,
-                border = BorderStroke(1.dp, AppTheme.colors.rule),
+                border = BorderStroke(1.dp, if (errorMsg != null) AppTheme.colors.danger else AppTheme.colors.rule),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .clickable(onClick = onPickTimeClick)
+                    .clickable {
+                        showNativeTimePicker(context, customTimeInput) { picked ->
+                            customTimeInput = picked
+                            val pickedMillis = parseTodayClockMillis(picked)
+                            errorMsg = if (pickedMillis != null && pickedMillis > System.currentTimeMillis()) {
+                                "Arrival time cannot be in the future."
+                            } else {
+                                null
+                            }
+                        }
+                    }
             ) {
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 14.dp),
+                        .padding(horizontal = 16.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.SpaceBetween
                 ) {
@@ -338,25 +367,49 @@ fun ArrivedEarlierBottomSheet(
 
                     if (customTimeInput.isNotBlank()) {
                         IconButton(
-                            onClick = onClearCustomTime,
-                            modifier = Modifier.size(32.dp)
+                            onClick = {
+                                customTimeInput = ""
+                                errorMsg = null
+                            },
+                            modifier = Modifier.size(48.dp)
                         ) {
                             Icon(
                                 imageVector = Icons.Default.Close,
                                 contentDescription = "Clear custom time",
                                 tint = AppTheme.colors.muted,
-                                modifier = Modifier.size(16.dp)
+                                modifier = Modifier.size(18.dp)
                             )
                         }
                     }
                 }
             }
 
+            if (errorMsg != null) {
+                Text(
+                    text = errorMsg ?: "",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = AppTheme.colors.danger
+                )
+            }
+
             Spacer(modifier = Modifier.height(8.dp))
 
             WfoPrimaryButton(
                 text = "Punch in",
-                onClick = onConfirmPunchIn,
+                onClick = {
+                    val now = System.currentTimeMillis()
+                    if (customTimeInput.isNotBlank()) {
+                        val pickedMillis = parseTodayClockMillis(customTimeInput)
+                        if (pickedMillis == null || pickedMillis > now) {
+                            errorMsg = "Arrival time cannot be in the future."
+                            return@WfoPrimaryButton
+                        }
+                        onConfirmPunchIn(pickedMillis)
+                    } else {
+                        val startMillis = now - (selectedOffsetMinutes * 60 * 1000L)
+                        onConfirmPunchIn(startMillis)
+                    }
+                },
                 modifier = Modifier.fillMaxWidth()
             )
         }
