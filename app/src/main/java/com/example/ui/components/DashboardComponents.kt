@@ -896,8 +896,8 @@ fun ArrivedEarlierBottomSheet(
             )
 
             Surface(
-                shape = SurfaceGroupShape,
-                color = AppTheme.colors.ground,
+                shape = RoundedCornerShape(16.dp),
+                color = AppTheme.colors.sheet,
                 border = BorderStroke(1.dp, if (errorMsg != null) AppTheme.colors.danger else AppTheme.colors.rule),
                 modifier = Modifier
                     .fillMaxWidth()

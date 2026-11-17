@@ -132,6 +132,7 @@ class GeofenceArrivalReceiver : BroadcastReceiver() {
             val distanceText = if (distanceKm < 0.1) "at office" else String.format(Locale.US, "%.2f km away", distanceKm)
             val notification = NotificationCompat.Builder(context, GEOFENCE_CHANNEL_ID)
                 .setSmallIcon(R.mipmap.ic_launcher)
+                .setColor(0xFF15803D.toInt())
                 .setContentTitle("Arrived at the office ($distanceText)")
                 .setContentText("Ready to punch in. Tap to review or punch in.")
                 .setStyle(

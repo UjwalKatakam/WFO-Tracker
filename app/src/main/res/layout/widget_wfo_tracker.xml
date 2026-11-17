@@ -95,7 +95,7 @@
             android:stateListAnimator="@null"
             android:text="@string/widget_action_punch_in"
             android:textAllCaps="false"
-            android:textColor="@color/app_ground"
+            android:textColor="@color/app_on_action"
             android:textSize="14sp"
             android:paddingStart="16dp"
             android:paddingEnd="16dp" />

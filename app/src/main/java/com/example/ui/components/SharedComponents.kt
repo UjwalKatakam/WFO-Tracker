@@ -101,12 +101,13 @@ fun WfoCard(
     shape: Shape = SurfaceGroupShape,
     elevation: Dp = 8.dp,
     color: Color = AppTheme.colors.card,
+    border: BorderStroke? = null,
     content: @Composable () -> Unit
 ) {
     Surface(
         shape = shape,
         color = color,
-        border = wfoCardBorder(),
+        border = border ?: wfoCardBorder(),
         modifier = modifier.then(wfoCardShadow(elevation = elevation, shape = shape)),
         content = content
     )
@@ -513,8 +514,8 @@ fun WfoSwitchRow(
                 onCheckedChange = null,
                 enabled = enabled,
                 colors = SwitchDefaults.colors(
-                    checkedThumbColor = AppTheme.colors.onPresent,
-                    checkedTrackColor = AppTheme.colors.present,
+                    checkedThumbColor = AppTheme.colors.onAction,
+                    checkedTrackColor = AppTheme.colors.progress,
                     uncheckedThumbColor = AppTheme.colors.muted,
                     uncheckedTrackColor = AppTheme.colors.sheet,
                     uncheckedBorderColor = AppTheme.colors.rule
@@ -554,11 +555,12 @@ fun WfoBottomSheet(
         shape = SheetShape,
         containerColor = AppTheme.colors.sheet,
         contentColor = AppTheme.colors.ink,
+        tonalElevation = 0.dp,
         dragHandle = {
             Box(
                 modifier = Modifier
                     .padding(vertical = 10.dp)
-                    .size(width = 36.dp, height = 4.dp)
+                    .size(width = 32.dp, height = 4.dp)
                     .background(AppTheme.colors.rule, CircleShape)
             )
         },

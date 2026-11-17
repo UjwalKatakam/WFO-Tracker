@@ -191,10 +191,10 @@ fun ManualLogDialog(
                     .fillMaxWidth()
                     .verticalScroll(scrollState)
             ) {
-                // Two-segment control: Office day vs Leave or holiday (no emoji tabs)
+                // Two-segment control: Office day vs Leave or holiday
                 Surface(
-                    shape = RoundedCornerShape(12.dp),
-                    color = AppTheme.colors.raised,
+                    shape = RoundedCornerShape(16.dp),
+                    color = AppTheme.colors.ground,
                     border = BorderStroke(1.dp, AppTheme.colors.rule),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -213,20 +213,20 @@ fun ManualLogDialog(
                                 activeTab = ManualLogTab.ATTENDANCE
                                 errorMessage = null
                             },
-                            shape = RoundedCornerShape(8.dp),
-                            color = if (isAttendance) AppTheme.colors.ground else AppTheme.colors.raised,
-                            border = if (isAttendance) BorderStroke(1.dp, AppTheme.colors.rule) else null,
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isAttendance) AppTheme.colors.presentContainer else androidx.compose.ui.graphics.Color.Transparent,
+                            border = if (isAttendance) BorderStroke(1.dp, AppTheme.colors.presentDeep) else null,
                             modifier = Modifier
                                 .weight(1f)
-                                .defaultMinSize(minHeight = 40.dp)
+                                .defaultMinSize(minHeight = 48.dp)
                                 .semantics { role = Role.Tab }
                         ) {
                             Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(8.dp)) {
                                 Text(
                                     text = "Office day",
                                     style = MaterialTheme.typography.labelLarge,
-                                    color = if (isAttendance) AppTheme.colors.ink else AppTheme.colors.muted,
-                                    fontWeight = if (isAttendance) FontWeight.Medium else FontWeight.Normal
+                                    color = if (isAttendance) AppTheme.colors.presentDeep else AppTheme.colors.muted,
+                                    fontWeight = if (isAttendance) FontWeight.SemiBold else FontWeight.Normal
                                 )
                             }
                         }
@@ -238,20 +238,20 @@ fun ManualLogDialog(
                                 activeTab = ManualLogTab.LEAVE_HOLIDAY
                                 errorMessage = null
                             },
-                            shape = RoundedCornerShape(8.dp),
-                            color = if (isLeave) AppTheme.colors.ground else AppTheme.colors.raised,
-                            border = if (isLeave) BorderStroke(1.dp, AppTheme.colors.rule) else null,
+                            shape = RoundedCornerShape(12.dp),
+                            color = if (isLeave) AppTheme.colors.presentContainer else androidx.compose.ui.graphics.Color.Transparent,
+                            border = if (isLeave) BorderStroke(1.dp, AppTheme.colors.presentDeep) else null,
                             modifier = Modifier
                                 .weight(1f)
-                                .defaultMinSize(minHeight = 40.dp)
+                                .defaultMinSize(minHeight = 48.dp)
                                 .semantics { role = Role.Tab }
                         ) {
                             Box(contentAlignment = Alignment.Center, modifier = Modifier.padding(8.dp)) {
                                 Text(
                                     text = "Leave or holiday",
                                     style = MaterialTheme.typography.labelLarge,
-                                    color = if (isLeave) AppTheme.colors.ink else AppTheme.colors.muted,
-                                    fontWeight = if (isLeave) FontWeight.Medium else FontWeight.Normal
+                                    color = if (isLeave) AppTheme.colors.presentDeep else AppTheme.colors.muted,
+                                    fontWeight = if (isLeave) FontWeight.SemiBold else FontWeight.Normal
                                 )
                             }
                         }
@@ -359,8 +359,8 @@ fun ManualLogDialog(
                             placeholder = { Text("e.g. Client visit, forgot to punch", style = MaterialTheme.typography.bodyMedium) },
                             singleLine = true,
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = AppTheme.colors.raised,
-                                unfocusedContainerColor = AppTheme.colors.raised,
+                                focusedContainerColor = AppTheme.colors.sheet,
+                                unfocusedContainerColor = AppTheme.colors.sheet,
                                 focusedBorderColor = AppTheme.colors.presentDeep,
                                 unfocusedBorderColor = AppTheme.colors.rule,
                                 focusedTextColor = AppTheme.colors.ink,
@@ -368,7 +368,7 @@ fun ManualLogDialog(
                                 focusedLabelColor = AppTheme.colors.presentDeep,
                                 unfocusedLabelColor = AppTheme.colors.muted
                             ),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(16.dp),
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                             keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                             modifier = Modifier.fillMaxWidth()
@@ -453,8 +453,8 @@ fun ManualLogDialog(
                             placeholder = { Text("e.g. Festival, Doctor visit", style = MaterialTheme.typography.bodyMedium) },
                             singleLine = true,
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedContainerColor = AppTheme.colors.raised,
-                                unfocusedContainerColor = AppTheme.colors.raised,
+                                focusedContainerColor = AppTheme.colors.sheet,
+                                unfocusedContainerColor = AppTheme.colors.sheet,
                                 focusedBorderColor = AppTheme.colors.presentDeep,
                                 unfocusedBorderColor = AppTheme.colors.rule,
                                 focusedTextColor = AppTheme.colors.ink,
@@ -462,7 +462,7 @@ fun ManualLogDialog(
                                 focusedLabelColor = AppTheme.colors.presentDeep,
                                 unfocusedLabelColor = AppTheme.colors.muted
                             ),
-                            shape = RoundedCornerShape(12.dp),
+                            shape = RoundedCornerShape(16.dp),
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                             keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                             modifier = Modifier.fillMaxWidth()
@@ -551,8 +551,8 @@ private fun LogPickerField(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = AppTheme.colors.raised,
+        shape = RoundedCornerShape(16.dp),
+        color = AppTheme.colors.sheet,
         border = BorderStroke(1.dp, AppTheme.colors.rule),
         modifier = modifier
             .defaultMinSize(minHeight = 48.dp)

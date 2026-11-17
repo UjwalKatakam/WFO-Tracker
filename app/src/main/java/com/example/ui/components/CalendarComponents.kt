@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.defaultMinSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -22,6 +23,7 @@ import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.ArrowForward
@@ -52,6 +54,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.Role
@@ -469,20 +472,18 @@ fun MonthCalendarCard(
                             val isLeaveOrHoliday = leave != null
 
                             val cellBg = when {
+                                isSelected -> AppTheme.colors.progress
                                 isLeaveOrHoliday -> AppTheme.colors.rule.copy(alpha = 0.45f)
-                                isValidWfo -> AppTheme.colors.present.copy(alpha = if (AppTheme.colors.isDark) 0.16f else 0.12f)
-                                isShortWfo -> AppTheme.colors.short.copy(alpha = if (AppTheme.colors.isDark) 0.14f else 0.10f)
-                                isWeekend -> AppTheme.colors.ground.copy(alpha = 0.5f)
-                                else -> AppTheme.colors.ground
+                                isValidWfo -> AppTheme.colors.presentContainer
+                                else -> Color.Transparent
                             }
 
                             val borderModifier = when {
-                                isSelected -> Modifier.border(2.dp, AppTheme.colors.presentDeep, CalendarCellShape)
-                                isToday -> Modifier.border(2.dp, AppTheme.colors.ink, CalendarCellShape)
-                                isValidWfo -> Modifier.border(1.dp, AppTheme.colors.present.copy(alpha = 0.45f), CalendarCellShape)
-                                isShortWfo -> Modifier.border(1.dp, AppTheme.colors.short.copy(alpha = 0.5f), CalendarCellShape)
+                                isToday -> Modifier.border(2.dp, AppTheme.colors.presentDeep, CalendarCellShape)
+                                isSelected -> Modifier
+                                isShortWfo -> Modifier.border(1.dp, AppTheme.colors.short, CalendarCellShape)
                                 isLeaveOrHoliday -> Modifier.border(1.dp, AppTheme.colors.rule, CalendarCellShape)
-                                else -> Modifier.border(1.dp, AppTheme.colors.rule.copy(alpha = 0.4f), CalendarCellShape)
+                                else -> Modifier
                             }
 
                             val clickModifier = if (onDateLongClick != null) {
@@ -510,6 +511,7 @@ fun MonthCalendarCard(
                             Box(
                                 modifier = Modifier
                                     .weight(1f)
+                                    .defaultMinSize(minHeight = 44.dp)
                                     .aspectRatio(1f)
                                     .padding(2.dp)
                                     .clip(CalendarCellShape)
@@ -551,40 +553,35 @@ fun MonthCalendarCard(
                                         style = MaterialTheme.typography.bodyMedium,
                                         fontWeight = if (isValidWfo || isSelected || isToday) FontWeight.SemiBold else FontWeight.Normal,
                                         color = when {
-                                            isWeekend -> AppTheme.colors.muted.copy(alpha = 0.5f)
+                                            isSelected -> AppTheme.colors.onAction
                                             isValidWfo -> AppTheme.colors.presentDeep
                                             isShortWfo -> AppTheme.colors.short
                                             isLeaveOrHoliday -> AppTheme.colors.ink
+                                            isWeekend -> AppTheme.colors.muted
                                             else -> AppTheme.colors.ink
                                         }
                                     )
 
                                     if (leave != null) {
-                                        // Outlined cell with small vector icon and letter (H, S, V, F, W), NO color
-                                        val (icon, letter) = getLeaveIconAndLetter(leave.type)
-                                        Row(
-                                            verticalAlignment = Alignment.CenterVertically,
-                                            horizontalArrangement = Arrangement.Center
-                                        ) {
-                                            Icon(
-                                                imageVector = icon,
-                                                contentDescription = null,
-                                                tint = AppTheme.colors.muted,
-                                                modifier = Modifier.size(11.dp)
-                                            )
-                                            Spacer(modifier = Modifier.width(1.dp))
-                                            Text(
-                                                text = letter,
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = AppTheme.colors.muted,
-                                                fontWeight = FontWeight.Bold
-                                            )
-                                        }
-                                    } else if (log != null) {
+                                        val (_, letter) = getLeaveIconAndLetter(leave.type)
+                                        Text(
+                                            text = letter,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = if (isSelected) AppTheme.colors.onAction else AppTheme.colors.muted,
+                                            fontWeight = FontWeight.SemiBold
+                                        )
+                                    } else if (isValidWfo) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = if (isSelected) AppTheme.colors.onAction else AppTheme.colors.presentDeep,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                    } else if (isShortWfo && log != null) {
                                         Text(
                                             text = formatCompactDuration(log.totalHours),
                                             style = MaterialTheme.typography.labelSmall,
-                                            color = if (isValidWfo) AppTheme.colors.presentDeep else AppTheme.colors.short,
+                                            color = if (isSelected) AppTheme.colors.onAction else AppTheme.colors.short,
                                             fontWeight = FontWeight.Medium,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis
@@ -597,6 +594,7 @@ fun MonthCalendarCard(
                             Spacer(
                                 modifier = Modifier
                                     .weight(1f)
+                                    .defaultMinSize(minHeight = 44.dp)
                                     .aspectRatio(1f)
                                     .padding(2.dp)
                             )
@@ -608,19 +606,20 @@ fun MonthCalendarCard(
                     Box(
                         modifier = Modifier
                             .weight(1f)
+                            .defaultMinSize(minHeight = 44.dp)
                             .aspectRatio(1f)
                             .padding(2.dp)
                             .clip(CalendarCellShape)
                             .background(
                                 if (isQuotaMet) {
-                                    AppTheme.colors.present.copy(alpha = if (AppTheme.colors.isDark) 0.16f else 0.12f)
+                                    AppTheme.colors.presentContainer
                                 } else {
-                                    AppTheme.colors.ground.copy(alpha = 0.35f)
+                                    Color.Transparent
                                 }
                             )
                             .border(
                                 1.dp,
-                                if (isQuotaMet) AppTheme.colors.present.copy(alpha = 0.4f) else AppTheme.colors.rule.copy(alpha = 0.3f),
+                                if (isQuotaMet) AppTheme.colors.presentDeep.copy(alpha = 0.4f) else AppTheme.colors.rule.copy(alpha = 0.6f),
                                 CalendarCellShape
                             )
                             .semantics {
@@ -637,7 +636,65 @@ fun MonthCalendarCard(
                     }
                 }
             }
+
+            Spacer(modifier = Modifier.height(10.dp))
+            HorizontalDivider(color = AppTheme.colors.rule, thickness = 1.dp)
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // One-line legend row under the grid
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterHorizontally),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                CalendarLegendItem(
+                    label = "Valid",
+                    fillColor = AppTheme.colors.presentContainer,
+                    borderColor = null
+                )
+                CalendarLegendItem(
+                    label = "Under min",
+                    fillColor = Color.Transparent,
+                    borderColor = AppTheme.colors.short
+                )
+                CalendarLegendItem(
+                    label = "Leave",
+                    fillColor = AppTheme.colors.rule.copy(alpha = 0.45f),
+                    borderColor = AppTheme.colors.rule
+                )
+            }
         }
+    }
+}
+
+@Composable
+private fun CalendarLegendItem(
+    label: String,
+    fillColor: Color,
+    borderColor: Color?
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        Box(
+            modifier = Modifier
+                .size(12.dp)
+                .clip(RoundedCornerShape(4.dp))
+                .background(fillColor)
+                .then(
+                    if (borderColor != null) {
+                        Modifier.border(1.dp, borderColor, RoundedCornerShape(4.dp))
+                    } else {
+                        Modifier
+                    }
+                )
+        )
+        Text(
+            text = label,
+            style = MaterialTheme.typography.labelSmall,
+            color = AppTheme.colors.muted
+        )
     }
 }
 
@@ -688,6 +745,7 @@ fun YearMatrixMonthCard(
     logs: List<CheckInLog>,
     leaves: List<LeaveHoliday>,
     minHours: Double,
+    targetDaysPerMonth: Int = 12,
     selectedDateKey: String,
     onDateSelected: (String) -> Unit,
     onOpenMonthClick: (year: Int, month: Int) -> Unit,
@@ -703,12 +761,29 @@ fun YearMatrixMonthCard(
             set(Calendar.DAY_OF_MONTH, 1)
         }
     }
+    val todayCal = remember { Calendar.getInstance() }
+    val isCurrentCalendarMonth = year == todayCal.get(Calendar.YEAR) && month == todayCal.get(Calendar.MONTH)
+    val todayDateStr = remember { DateUtils.todayDateStr() }
+
     val monthName = remember(cal) {
         SimpleDateFormat("MMMM", Locale.US).format(cal.time)
     }
 
     val monthPrefix = String.format(Locale.US, "%04d-%02d", year, month + 1)
     val validDaysCount = logs.count { it.date.startsWith(monthPrefix) && it.isValidWFODay(minHours) }
+    val weekdayLeavesCount = leaves.count {
+        if (!it.date.startsWith(monthPrefix)) return@count false
+        val d = DateUtils.parseDate(it.date)
+        val c = Calendar.getInstance().apply { time = d }
+        val dow = c.get(Calendar.DAY_OF_WEEK)
+        dow != Calendar.SATURDAY && dow != Calendar.SUNDAY
+    }
+    val monthRequiredDays = maxOf(0, targetDaysPerMonth - weekdayLeavesCount)
+    val monthProgress = if (monthRequiredDays > 0) {
+        (validDaysCount.toFloat() / monthRequiredDays.toFloat()).coerceIn(0f, 1f)
+    } else {
+        1f
+    }
     val leaveDaysCount = leaves.count { it.date.startsWith(monthPrefix) }
 
     val firstDayOfWeek = cal.get(Calendar.DAY_OF_WEEK)
@@ -716,16 +791,18 @@ fun YearMatrixMonthCard(
     val totalDaysInMonth = cal.getActualMaximum(Calendar.DAY_OF_MONTH)
 
     WfoCard(
+        elevation = 2.dp,
+        border = if (isCurrentCalendarMonth) BorderStroke(2.dp, AppTheme.colors.presentDeep) else null,
         modifier = modifier.fillMaxWidth()
     ) {
         Column(modifier = Modifier.padding(14.dp)) {
-            // Header Row: Month Name & stats & Focus CTA
+            // Header Row: Month Name & quota stats & Focus CTA
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Column {
+                Column(modifier = Modifier.weight(1f)) {
                     Text(
                         text = monthName,
                         style = MaterialTheme.typography.titleMedium,
@@ -738,7 +815,7 @@ fun YearMatrixMonthCard(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text(
-                            text = "$validDaysCount office days",
+                            text = "$validDaysCount of $monthRequiredDays days",
                             style = MaterialTheme.typography.labelSmall,
                             color = AppTheme.colors.presentDeep,
                             fontWeight = FontWeight.Medium
@@ -758,6 +835,27 @@ fun YearMatrixMonthCard(
                     onClick = { onOpenMonthClick(year, month) },
                     icon = Icons.Default.NorthEast
                 )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Horizontal progress bar
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(6.dp)
+                    .clip(CircleShape)
+                    .background(AppTheme.colors.trackEmpty)
+            ) {
+                if (monthProgress > 0f) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(monthProgress)
+                            .fillMaxHeight()
+                            .clip(CircleShape)
+                            .background(AppTheme.colors.progress)
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(10.dp))
@@ -795,6 +893,7 @@ fun YearMatrixMonthCard(
                         if (dayNumber in 1..totalDaysInMonth) {
                             val dateKey = String.format(Locale.US, "%04d-%02d-%02d", year, month + 1, dayNumber)
                             val isSelected = dateKey == selectedDateKey
+                            val isToday = dateKey == todayDateStr
                             val isWeekend = col == 5 || col == 6
 
                             val log = logs.find { it.date == dateKey }
@@ -804,17 +903,16 @@ fun YearMatrixMonthCard(
                             val isShortWfo = log != null && !isValidWfo
 
                             val cellBg = when {
+                                isSelected -> AppTheme.colors.progress
                                 leave != null -> AppTheme.colors.rule.copy(alpha = 0.45f)
-                                isValidWfo -> AppTheme.colors.present.copy(alpha = if (AppTheme.colors.isDark) 0.16f else 0.12f)
-                                isShortWfo -> AppTheme.colors.short.copy(alpha = if (AppTheme.colors.isDark) 0.14f else 0.10f)
-                                isWeekend -> AppTheme.colors.ground.copy(alpha = 0.5f)
-                                else -> AppTheme.colors.ground
+                                isValidWfo -> AppTheme.colors.presentContainer
+                                else -> Color.Transparent
                             }
 
                             val borderModifier = when {
-                                isSelected -> Modifier.border(1.5.dp, AppTheme.colors.presentDeep, CalendarCellShape)
-                                isValidWfo -> Modifier.border(1.dp, AppTheme.colors.present.copy(alpha = 0.35f), CalendarCellShape)
-                                isShortWfo -> Modifier.border(1.dp, AppTheme.colors.short.copy(alpha = 0.35f), CalendarCellShape)
+                                isToday -> Modifier.border(2.dp, AppTheme.colors.presentDeep, CalendarCellShape)
+                                isSelected -> Modifier
+                                isShortWfo -> Modifier.border(1.dp, AppTheme.colors.short, CalendarCellShape)
                                 leave != null -> Modifier.border(1.dp, AppTheme.colors.rule, CalendarCellShape)
                                 else -> Modifier
                             }
@@ -873,31 +971,22 @@ fun YearMatrixMonthCard(
                                 contentAlignment = Alignment.Center
                             ) {
                                 if (leave != null) {
-                                    val (leaveIcon, _) = getLeaveIconAndLetter(leave.type)
-                                    Column(
-                                        horizontalAlignment = Alignment.CenterHorizontally,
-                                        verticalArrangement = Arrangement.Center
-                                    ) {
-                                        Text(
-                                            text = "$dayNumber",
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = AppTheme.colors.ink
-                                        )
-                                        Icon(
-                                            imageVector = leaveIcon,
-                                            contentDescription = null,
-                                            tint = AppTheme.colors.muted,
-                                            modifier = Modifier.size(10.dp)
-                                        )
-                                    }
+                                    val (_, letter) = getLeaveIconAndLetter(leave.type)
+                                    Text(
+                                        text = letter,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = if (isSelected) AppTheme.colors.onAction else AppTheme.colors.muted,
+                                        fontWeight = FontWeight.SemiBold
+                                    )
                                 } else {
                                     Text(
                                         text = "$dayNumber",
                                         style = MaterialTheme.typography.labelSmall,
                                         color = when {
+                                            isSelected -> AppTheme.colors.onAction
                                             isValidWfo -> AppTheme.colors.presentDeep
                                             isShortWfo -> AppTheme.colors.short
-                                            isWeekend -> AppTheme.colors.muted.copy(alpha = 0.5f)
+                                            isWeekend -> AppTheme.colors.muted
                                             else -> AppTheme.colors.ink
                                         }
                                     )
@@ -936,6 +1025,8 @@ fun DailyStatusTimelineCard(
     activeStartMillis: Long?,
     minHours: Double,
     onLogActionClick: (() -> Unit)? = null,
+    onEditClick: (() -> Unit)? = null,
+    onDeleteClick: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val parsedDate = remember(dateKey) { DateUtils.parseDate(dateKey) }
@@ -969,11 +1060,11 @@ fun DailyStatusTimelineCard(
                     )
                 }
 
-                if (onLogActionClick != null) {
-                    WfoTonalButton(
-                        text = if (log != null || leave != null) "Edit day" else "Log day",
+                if (log == null && leave == null && onLogActionClick != null) {
+                    WfoTextButton(
+                        text = "Log day",
                         onClick = onLogActionClick,
-                        icon = if (log != null || leave != null) Icons.Default.Edit else null
+                        textColorOverride = AppTheme.colors.presentDeep
                     )
                 }
             }
@@ -1073,6 +1164,32 @@ fun DailyStatusTimelineCard(
                             .fillMaxWidth()
                             .padding(vertical = 8.dp)
                     )
+                }
+            }
+
+            if (log != null || leave != null) {
+                Spacer(modifier = Modifier.height(10.dp))
+                HorizontalDivider(color = AppTheme.colors.rule, thickness = 1.dp)
+                Spacer(modifier = Modifier.height(6.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    if (onEditClick != null || onLogActionClick != null) {
+                        WfoTextButton(
+                            text = "Edit",
+                            onClick = { (onEditClick ?: onLogActionClick)?.invoke() },
+                            textColorOverride = AppTheme.colors.presentDeep
+                        )
+                    }
+                    if (onDeleteClick != null) {
+                        WfoTextButton(
+                            text = "Delete",
+                            isDanger = true,
+                            onClick = onDeleteClick
+                        )
+                    }
                 }
             }
         }

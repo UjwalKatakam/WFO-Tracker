@@ -67,6 +67,7 @@ import androidx.compose.ui.unit.dp
 import com.example.data.preferences.ThemeMode
 import com.example.ui.components.ReportMonthPickerSheet
 import com.example.ui.components.WfoBottomSheet
+import com.example.ui.components.WfoCard
 import com.example.ui.components.WfoListRow
 import com.example.ui.components.WfoPrimaryButton
 import com.example.ui.components.WfoSectionHeader
@@ -74,8 +75,6 @@ import com.example.ui.components.WfoSwitchRow
 import com.example.ui.components.WfoTextButton
 import com.example.ui.components.WfoTonalButton
 import com.example.ui.components.sharePdfReport
-import com.example.ui.components.wfoCardBorder
-import com.example.ui.components.wfoCardShadow
 import com.example.ui.theme.AppTheme
 import com.example.ui.theme.SurfaceGroupShape
 import com.example.ui.viewmodel.WfoUiState
@@ -263,14 +262,11 @@ fun SettingsScreen(
         // --------------------------------------------------------------------
         WfoSectionHeader(title = "Appearance")
 
-        Surface(
-            shape = SurfaceGroupShape,
-            color = AppTheme.colors.card,
-            border = wfoCardBorder(),
+        WfoCard(
+            elevation = 2.dp,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp)
-                .then(wfoCardShadow(elevation = 2.dp, shape = SurfaceGroupShape))
         ) {
             Row(
                 modifier = Modifier
@@ -315,100 +311,76 @@ fun SettingsScreen(
         Spacer(modifier = Modifier.height(16.dp))
 
         // --------------------------------------------------------------------
-        // 1. Attendance Policy Section
+        // 1. Work Policy Section
         // --------------------------------------------------------------------
-        WfoSectionHeader(title = "Attendance policy")
+        WfoSectionHeader(title = "Work policy")
 
-        WfoListRow(
-            title = "Name",
-            subtitle = uiState.settings.employeeName.takeUnless {
-                it.isBlank() || it.equals("Employee", ignoreCase = true)
-            } ?: "Not configured",
-            trailingContent = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = null,
-                    tint = AppTheme.colors.muted,
-                    modifier = Modifier.size(16.dp)
+        WfoCard(
+            elevation = 2.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                WfoListRow(
+                    title = "Name",
+                    subtitle = uiState.settings.employeeName.takeUnless {
+                        it.isBlank() || it.equals("Employee", ignoreCase = true)
+                    } ?: "Not configured",
+                    trailingContent = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = AppTheme.colors.muted,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    },
+                    onClick = { showEditPolicySheet = true }
                 )
-            },
-            onClick = { showEditPolicySheet = true }
-        )
 
-        WfoListRow(
-            title = "Daily target",
-            subtitle = "${String.format(Locale.US, "%.1f", uiState.settings.minHours)} hours",
-            trailingContent = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = null,
-                    tint = AppTheme.colors.muted,
-                    modifier = Modifier.size(16.dp)
+                WfoListRow(
+                    title = "Daily target",
+                    subtitle = "${String.format(Locale.US, "%.1f", uiState.settings.minHours)} hours",
+                    trailingContent = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = AppTheme.colors.muted,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    },
+                    onClick = { showEditPolicySheet = true }
                 )
-            },
-            onClick = { showEditPolicySheet = true }
-        )
 
-        WfoListRow(
-            title = "Weekly target",
-            subtitle = "${uiState.settings.targetDaysPerWeek} days a week",
-            trailingContent = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = null,
-                    tint = AppTheme.colors.muted,
-                    modifier = Modifier.size(16.dp)
+                WfoListRow(
+                    title = "Weekly target",
+                    subtitle = "${uiState.settings.targetDaysPerWeek} days a week",
+                    trailingContent = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = AppTheme.colors.muted,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    },
+                    onClick = { showEditPolicySheet = true }
                 )
-            },
-            onClick = { showEditPolicySheet = true }
-        )
 
-        WfoListRow(
-            title = "Expected shift start",
-            subtitle = uiState.settings.shiftStart,
-            trailingContent = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = null,
-                    tint = AppTheme.colors.muted,
-                    modifier = Modifier.size(16.dp)
+                WfoListRow(
+                    title = "Expected shift start",
+                    subtitle = uiState.settings.shiftStart,
+                    showDivider = false,
+                    trailingContent = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = AppTheme.colors.muted,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    },
+                    onClick = { showEditPolicySheet = true }
                 )
-            },
-            onClick = { showEditPolicySheet = true }
-        )
-
-        WfoSwitchRow(
-            title = "Target reached alert",
-            subtitle = "Audible alert when daily target is met",
-            checked = uiState.settings.notifyOnTarget,
-            onCheckedChange = { checked ->
-                viewModel.updateSettings(uiState.settings.copy(notifyOnTarget = checked))
             }
-        )
-
-        WfoSwitchRow(
-            title = "Departure reminder",
-            subtitle = "Alert if timer runs past departure threshold",
-            checked = uiState.settings.departureReminderEnabled,
-            onCheckedChange = { checked ->
-                viewModel.updateSettings(uiState.settings.copy(departureReminderEnabled = checked))
-            }
-        )
-
-        if (uiState.settings.departureReminderEnabled) {
-            WfoListRow(
-                title = "Departure alert threshold",
-                subtitle = "${String.format(Locale.US, "%.1f", uiState.settings.departureReminderHours)} hours active",
-                trailingContent = {
-                    Icon(
-                        imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                        contentDescription = null,
-                        tint = AppTheme.colors.muted,
-                        modifier = Modifier.size(16.dp)
-                    )
-                },
-                onClick = { showEditPolicySheet = true }
-            )
         }
 
         Spacer(modifier = Modifier.height(16.dp))
@@ -418,198 +390,284 @@ fun SettingsScreen(
         // --------------------------------------------------------------------
         WfoSectionHeader(title = "Office location")
 
-        WfoSwitchRow(
-            title = "Verify location on punch in",
-            subtitle = "Warn if device is outside allowed office perimeter",
-            checked = uiState.settings.gpsVerificationEnabled,
-            onCheckedChange = { checked ->
-                viewModel.updateSettings(uiState.settings.copy(gpsVerificationEnabled = checked))
-            }
-        )
-
-        WfoSwitchRow(
-            title = "Arrival notifications",
-            subtitle = "Prompt to punch in when arriving at the office",
-            checked = uiState.settings.passiveGeofenceArrivalEnabled,
-            onCheckedChange = { checked ->
-                viewModel.updateSettings(uiState.settings.copy(passiveGeofenceArrivalEnabled = checked))
-            }
-        )
-
-        WfoSwitchRow(
-            title = "Mute on holidays and weekends",
-            subtitle = "Skip arrival alerts on weekends and holiday, sick, or vacation days (not WFH)",
-            checked = uiState.settings.autoMuteHolidays,
-            onCheckedChange = { checked ->
-                viewModel.updateSettings(uiState.settings.copy(autoMuteHolidays = checked))
-            }
-        )
-
-        WfoListRow(
-            title = "Office coordinates",
-            subtitle = String.format(Locale.US, "%.5f, %.5f", uiState.settings.lat, uiState.settings.lon),
-            trailingContent = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = null,
-                    tint = AppTheme.colors.muted,
-                    modifier = Modifier.size(16.dp)
-                )
-            },
-            onClick = { showEditLocationSheet = true }
-        )
-
-        WfoListRow(
-            title = "Allowed radius",
-            subtitle = "${String.format(Locale.US, "%.2f", uiState.settings.radiusKm)} km",
-            trailingContent = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = null,
-                    tint = AppTheme.colors.muted,
-                    modifier = Modifier.size(16.dp)
-                )
-            },
-            onClick = { showEditLocationSheet = true }
-        )
-
-        Spacer(modifier = Modifier.height(16.dp))
-
-        // --------------------------------------------------------------------
-        // 3. Cloud Sync Section
-        // --------------------------------------------------------------------
-        WfoSectionHeader(title = "Cloud sync")
-
-        WfoListRow(
-            title = "Personal access token",
-            subtitle = when {
-                uiState.settings.tokenUnreadable -> "Needs re-entry"
-                uiState.settings.gitToken.isNotBlank() -> "Configured (tap to change)"
-                else -> "Not configured"
-            },
-            subtitleColor = if (uiState.settings.tokenUnreadable) AppTheme.colors.short else AppTheme.colors.muted,
-            trailingContent = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = null,
-                    tint = AppTheme.colors.muted,
-                    modifier = Modifier.size(16.dp)
-                )
-            },
-            onClick = { showEditTokenSheet = true }
-        )
-
-        WfoListRow(
-            title = "Gist ID",
-            subtitle = if (uiState.settings.gistId.isNotBlank()) uiState.settings.gistId else "Auto-created on first sync",
-            trailingContent = {
-                Icon(
-                    imageVector = Icons.AutoMirrored.Filled.ArrowForward,
-                    contentDescription = null,
-                    tint = AppTheme.colors.muted,
-                    modifier = Modifier.size(16.dp)
-                )
-            },
-            onClick = { showEditGistIdSheet = true }
-        )
-
-        Row(
+        WfoCard(
+            elevation = 2.dp,
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                .padding(horizontal = 16.dp)
         ) {
-            WfoTonalButton(
-                text = if (uiState.isSyncingCloud) "Syncing" else "Push to cloud",
-                icon = if (!uiState.isSyncingCloud) Icons.Default.CloudUpload else null,
-                onClick = { viewModel.pushToCloud() },
-                enabled = !uiState.isSyncingCloud,
-                modifier = Modifier.weight(1f)
-            )
+            Column(modifier = Modifier.fillMaxWidth()) {
+                WfoSwitchRow(
+                    title = "Verify location on punch in",
+                    subtitle = "Warn if device is outside allowed office perimeter",
+                    checked = uiState.settings.gpsVerificationEnabled,
+                    onCheckedChange = { checked ->
+                        viewModel.updateSettings(uiState.settings.copy(gpsVerificationEnabled = checked))
+                    }
+                )
 
-            WfoTonalButton(
-                text = "Pull and merge",
-                icon = if (!uiState.isSyncingCloud) Icons.Default.CloudDownload else null,
-                onClick = { viewModel.pullFromCloud() },
-                enabled = !uiState.isSyncingCloud,
-                modifier = Modifier.weight(1f)
-            )
+                WfoSwitchRow(
+                    title = "Arrival notifications",
+                    subtitle = "Prompt to punch in when arriving at the office",
+                    checked = uiState.settings.passiveGeofenceArrivalEnabled,
+                    onCheckedChange = { checked ->
+                        viewModel.updateSettings(uiState.settings.copy(passiveGeofenceArrivalEnabled = checked))
+                    }
+                )
+
+                WfoSwitchRow(
+                    title = "Mute on holidays and weekends",
+                    subtitle = "Skip arrival alerts on weekends and holiday, sick, or vacation days (not WFH)",
+                    checked = uiState.settings.autoMuteHolidays,
+                    onCheckedChange = { checked ->
+                        viewModel.updateSettings(uiState.settings.copy(autoMuteHolidays = checked))
+                    }
+                )
+
+                WfoListRow(
+                    title = "Office coordinates",
+                    subtitle = String.format(Locale.US, "%.5f, %.5f", uiState.settings.lat, uiState.settings.lon),
+                    trailingContent = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = AppTheme.colors.muted,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    },
+                    onClick = { showEditLocationSheet = true }
+                )
+
+                WfoListRow(
+                    title = "Allowed radius",
+                    subtitle = "${String.format(Locale.US, "%.2f", uiState.settings.radiusKm)} km",
+                    showDivider = false,
+                    trailingContent = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = AppTheme.colors.muted,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    },
+                    onClick = { showEditLocationSheet = true }
+                )
+            }
         }
 
         Spacer(modifier = Modifier.height(16.dp))
 
         // --------------------------------------------------------------------
-        // 4. Audit Report Section
+        // 3. Notifications Section
         // --------------------------------------------------------------------
-        WfoSectionHeader(title = "Audit report")
+        WfoSectionHeader(title = "Notifications")
 
-        WfoListRow(
-            title = "Monthly compliance report",
-            subtitle = "Generate attendance report PDF for HR or records",
-            trailingContent = {
-                Icon(
-                    imageVector = Icons.Default.PictureAsPdf,
-                    contentDescription = null,
-                    tint = AppTheme.colors.muted,
-                    modifier = Modifier.size(20.dp)
+        WfoCard(
+            elevation = 2.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                WfoSwitchRow(
+                    title = "Target reached alert",
+                    subtitle = "Audible alert when daily target is met",
+                    checked = uiState.settings.notifyOnTarget,
+                    onCheckedChange = { checked ->
+                        viewModel.updateSettings(uiState.settings.copy(notifyOnTarget = checked))
+                    }
                 )
-            },
-            onClick = { showReportMonthPicker = true }
-        )
+
+                WfoSwitchRow(
+                    title = "Departure reminder",
+                    subtitle = "Alert if timer runs past departure threshold",
+                    checked = uiState.settings.departureReminderEnabled,
+                    showDivider = uiState.settings.departureReminderEnabled,
+                    onCheckedChange = { checked ->
+                        viewModel.updateSettings(uiState.settings.copy(departureReminderEnabled = checked))
+                    }
+                )
+
+                if (uiState.settings.departureReminderEnabled) {
+                    WfoListRow(
+                        title = "Departure alert threshold",
+                        subtitle = "${String.format(Locale.US, "%.1f", uiState.settings.departureReminderHours)} hours active",
+                        showDivider = false,
+                        trailingContent = {
+                            Icon(
+                                imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                                contentDescription = null,
+                                tint = AppTheme.colors.muted,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        },
+                        onClick = { showEditPolicySheet = true }
+                    )
+                }
+            }
+        }
 
         Spacer(modifier = Modifier.height(16.dp))
 
         // --------------------------------------------------------------------
-        // 5. Data & Backup Section
+        // 4. Backup Section
         // --------------------------------------------------------------------
-        WfoSectionHeader(title = "Data & backup")
+        WfoSectionHeader(title = "Backup")
 
-        WfoListRow(
-            title = "Export JSON backup",
-            subtitle = "Save attendance records and leaves as a file",
-            trailingContent = {
-                Icon(
-                    imageVector = Icons.Default.FileDownload,
-                    contentDescription = null,
-                    tint = AppTheme.colors.muted,
-                    modifier = Modifier.size(18.dp)
+        WfoCard(
+            elevation = 2.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                WfoListRow(
+                    title = "Personal access token",
+                    subtitle = when {
+                        uiState.settings.tokenUnreadable -> "Needs re-entry"
+                        uiState.settings.gitToken.isNotBlank() -> "Configured (tap to change)"
+                        else -> "Not configured"
+                    },
+                    subtitleColor = if (uiState.settings.tokenUnreadable) AppTheme.colors.short else AppTheme.colors.muted,
+                    trailingContent = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = AppTheme.colors.muted,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    },
+                    onClick = { showEditTokenSheet = true }
                 )
-            },
-            onClick = {
-                exportJsonLauncher.launch("WFO_Backup_${DateUtils.todayDateStr()}.json")
+
+                WfoListRow(
+                    title = "Gist ID",
+                    subtitle = if (uiState.settings.gistId.isNotBlank()) uiState.settings.gistId else "Auto-created on first sync",
+                    trailingContent = {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowForward,
+                            contentDescription = null,
+                            tint = AppTheme.colors.muted,
+                            modifier = Modifier.size(16.dp)
+                        )
+                    },
+                    onClick = { showEditGistIdSheet = true }
+                )
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    WfoTonalButton(
+                        text = if (uiState.isSyncingCloud) "Syncing" else "Push to cloud",
+                        icon = if (!uiState.isSyncingCloud) Icons.Default.CloudUpload else null,
+                        onClick = { viewModel.pushToCloud() },
+                        enabled = !uiState.isSyncingCloud,
+                        modifier = Modifier.weight(1f)
+                    )
+
+                    WfoTonalButton(
+                        text = "Pull and merge",
+                        icon = if (!uiState.isSyncingCloud) Icons.Default.CloudDownload else null,
+                        onClick = { viewModel.pullFromCloud() },
+                        enabled = !uiState.isSyncingCloud,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
             }
-        )
+        }
 
-        WfoListRow(
-            title = "Import JSON backup",
-            subtitle = "Restore or merge records from a JSON file",
-            trailingContent = {
-                Icon(
-                    imageVector = Icons.Default.FileUpload,
-                    contentDescription = null,
-                    tint = AppTheme.colors.muted,
-                    modifier = Modifier.size(18.dp)
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // --------------------------------------------------------------------
+        // 5. Data Section
+        // --------------------------------------------------------------------
+        WfoSectionHeader(title = "Data")
+
+        WfoCard(
+            elevation = 2.dp,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        ) {
+            Column(modifier = Modifier.fillMaxWidth()) {
+                WfoListRow(
+                    title = "Monthly compliance report",
+                    subtitle = "Generate attendance report PDF for HR or records",
+                    trailingContent = {
+                        Icon(
+                            imageVector = Icons.Default.PictureAsPdf,
+                            contentDescription = null,
+                            tint = AppTheme.colors.muted,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    },
+                    onClick = { showReportMonthPicker = true }
                 )
-            },
-            onClick = {
-                importJsonLauncher.launch(arrayOf("application/json", "*/*"))
+
+                WfoListRow(
+                    title = "Export JSON backup",
+                    subtitle = "Save attendance records and leaves as a file",
+                    trailingContent = {
+                        Icon(
+                            imageVector = Icons.Default.FileDownload,
+                            contentDescription = null,
+                            tint = AppTheme.colors.muted,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    },
+                    onClick = {
+                        exportJsonLauncher.launch("WFO_Backup_${DateUtils.todayDateStr()}.json")
+                    }
+                )
+
+                WfoListRow(
+                    title = "Import JSON backup",
+                    subtitle = "Restore or merge records from a JSON file",
+                    showDivider = false,
+                    trailingContent = {
+                        Icon(
+                            imageVector = Icons.Default.FileUpload,
+                            contentDescription = null,
+                            tint = AppTheme.colors.muted,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    },
+                    onClick = {
+                        importJsonLauncher.launch(arrayOf("application/json", "*/*"))
+                    }
+                )
             }
-        )
+        }
 
-        WfoListRow(
-            title = "Clear local data",
-            subtitle = "Delete local attendance records and leave data",
-            isDanger = true,
-            trailingContent = {
-                Icon(
-                    imageVector = Icons.Default.DeleteForever,
-                    contentDescription = null,
-                    tint = AppTheme.colors.danger,
-                    modifier = Modifier.size(18.dp)
-                )
-            },
-            onClick = { showClearDataDialog = true }
-        )
+        Spacer(modifier = Modifier.height(16.dp))
+
+        // Separate Danger Card for Clear all data
+        WfoCard(
+            elevation = 2.dp,
+            border = BorderStroke(1.dp, AppTheme.colors.danger),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 16.dp)
+        ) {
+            WfoListRow(
+                title = "Clear all data",
+                subtitle = "Delete local attendance records and leave data",
+                isDanger = true,
+                showDivider = false,
+                trailingContent = {
+                    Icon(
+                        imageVector = Icons.Default.DeleteForever,
+                        contentDescription = null,
+                        tint = AppTheme.colors.danger,
+                        modifier = Modifier.size(18.dp)
+                    )
+                },
+                onClick = { showClearDataDialog = true }
+            )
+        }
 
         Spacer(modifier = Modifier.height(32.dp))
     }
@@ -654,7 +712,7 @@ private fun EditPolicySheet(
                 placeholder = { Text("Your name") },
                 singleLine = true,
                 colors = textFieldColors(),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(16.dp),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Next),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -672,7 +730,7 @@ private fun EditPolicySheet(
                     placeholder = { Text("8.0") },
                     singleLine = true,
                     colors = textFieldColors(),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(16.dp),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next),
                     modifier = Modifier.weight(1f)
                 )
@@ -684,7 +742,7 @@ private fun EditPolicySheet(
                     placeholder = { Text("3") },
                     singleLine = true,
                     colors = textFieldColors(),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(16.dp),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
                     modifier = Modifier.weight(1f)
                 )
@@ -699,7 +757,7 @@ private fun EditPolicySheet(
                 placeholder = { Text("12:00") },
                 singleLine = true,
                 colors = textFieldColors(),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(16.dp),
                 keyboardOptions = KeyboardOptions(imeAction = if (settings.departureReminderEnabled) ImeAction.Next else ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                 modifier = Modifier.fillMaxWidth()
@@ -714,7 +772,7 @@ private fun EditPolicySheet(
                     placeholder = { Text("9.0") },
                     singleLine = true,
                     colors = textFieldColors(),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(16.dp),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
                     keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                     modifier = Modifier.fillMaxWidth()
@@ -803,7 +861,7 @@ private fun EditLocationSheet(
                     label = { Text("Latitude", style = MaterialTheme.typography.bodySmall) },
                     singleLine = true,
                     colors = textFieldColors(),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(16.dp),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next),
                     modifier = Modifier.weight(1f)
                 )
@@ -814,7 +872,7 @@ private fun EditLocationSheet(
                     label = { Text("Longitude", style = MaterialTheme.typography.bodySmall) },
                     singleLine = true,
                     colors = textFieldColors(),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(16.dp),
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Next),
                     modifier = Modifier.weight(1f)
                 )
@@ -829,7 +887,7 @@ private fun EditLocationSheet(
                 placeholder = { Text("0.5") },
                 singleLine = true,
                 colors = textFieldColors(),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(16.dp),
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal, imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                 modifier = Modifier.fillMaxWidth()
@@ -903,7 +961,7 @@ private fun EditTokenSheet(
                     }
                 },
                 colors = textFieldColors(),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(16.dp),
                 keyboardOptions = KeyboardOptions(
                     keyboardType = KeyboardType.Password,
                     autoCorrect = false,
@@ -964,7 +1022,7 @@ private fun EditGistIdSheet(
                 placeholder = { Text("e.g. 7f8a9b2c3d") },
                 singleLine = true,
                 colors = textFieldColors(),
-                shape = RoundedCornerShape(12.dp),
+                shape = RoundedCornerShape(16.dp),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { focusManager.clearFocus() }),
                 modifier = Modifier.fillMaxWidth()

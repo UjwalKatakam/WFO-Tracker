@@ -329,8 +329,8 @@ fun LeavesManagementDialog(
                     placeholder = { Text("e.g. Vacation, Public holiday", style = MaterialTheme.typography.bodyMedium) },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = AppTheme.colors.raised,
-                        unfocusedContainerColor = AppTheme.colors.raised,
+                        focusedContainerColor = AppTheme.colors.sheet,
+                        unfocusedContainerColor = AppTheme.colors.sheet,
                         focusedBorderColor = AppTheme.colors.presentDeep,
                         unfocusedBorderColor = AppTheme.colors.rule,
                         focusedTextColor = AppTheme.colors.ink,
@@ -339,7 +339,7 @@ fun LeavesManagementDialog(
                         unfocusedLabelColor = AppTheme.colors.muted,
                         cursorColor = AppTheme.colors.presentDeep
                     ),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -408,8 +408,8 @@ fun LeavesManagementDialog(
                     minLines = 3,
                     maxLines = 6,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = AppTheme.colors.raised,
-                        unfocusedContainerColor = AppTheme.colors.raised,
+                        focusedContainerColor = AppTheme.colors.sheet,
+                        unfocusedContainerColor = AppTheme.colors.sheet,
                         focusedBorderColor = AppTheme.colors.presentDeep,
                         unfocusedBorderColor = AppTheme.colors.rule,
                         focusedTextColor = AppTheme.colors.ink,
@@ -418,7 +418,7 @@ fun LeavesManagementDialog(
                         unfocusedLabelColor = AppTheme.colors.muted,
                         cursorColor = AppTheme.colors.presentDeep
                     ),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(16.dp),
                     modifier = Modifier.fillMaxWidth()
                 )
 
@@ -545,11 +545,17 @@ fun LeavesManagementDialog(
                     )
                 }
 
-                if (groupedLeaves.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(16.dp))
-                    HorizontalDivider(color = AppTheme.colors.rule, thickness = 1.dp)
-                    Spacer(modifier = Modifier.height(8.dp))
+                Spacer(modifier = Modifier.height(16.dp))
+                HorizontalDivider(color = AppTheme.colors.rule, thickness = 1.dp)
+                Spacer(modifier = Modifier.height(8.dp))
 
+                if (groupedLeaves.isEmpty()) {
+                    WfoEmptyState(
+                        illustration = WfoIllustrationKind.CALENDAR,
+                        title = "No exclusions yet",
+                        body = "Add holidays, sick days, vacation, or WFH days above."
+                    )
+                } else {
                     groupedLeaves.forEach { (monthHeader, monthLeaves) ->
                         WfoSectionHeader(title = monthHeader)
                         monthLeaves.forEach { leave ->
@@ -607,8 +613,8 @@ private fun LeavePickerField(
     modifier: Modifier = Modifier
 ) {
     Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = AppTheme.colors.raised,
+        shape = RoundedCornerShape(16.dp),
+        color = AppTheme.colors.sheet,
         border = BorderStroke(1.dp, AppTheme.colors.rule),
         modifier = modifier
             .defaultMinSize(minHeight = 48.dp)

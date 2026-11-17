@@ -33,11 +33,12 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CalendarMonth
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FilterList
-import androidx.compose.material.icons.filled.HourglassBottom
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
@@ -70,6 +71,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
@@ -85,12 +87,16 @@ import com.example.data.local.CheckInLog
 import com.example.ui.components.ManualLogDialog
 import com.example.ui.components.ReportMonthPickerSheet
 import com.example.ui.components.WfoBottomSheet
+import com.example.ui.components.WfoCard
 import com.example.ui.components.WfoChip
+import com.example.ui.components.WfoEmptyState
+import com.example.ui.components.WfoIllustrationKind
 import com.example.ui.components.WfoPrimaryButton
 import com.example.ui.components.WfoTextButton
 import com.example.ui.components.sharePdfReport
 import com.example.ui.components.showNativeDatePicker
 import com.example.ui.theme.AppTheme
+import com.example.ui.theme.ChipShape
 import com.example.ui.theme.SurfaceGroupShape
 import com.example.ui.viewmodel.WfoUiState
 import com.example.ui.viewmodel.WfoViewModel
@@ -267,16 +273,11 @@ fun LogHistoryScreen(
     val summaryText = remember(filteredLogs, uiState.settings.minHours) {
         val total = filteredLogs.size
         val qualified = filteredLogs.count { it.isValidWFODay(uiState.settings.minHours) }
-        val underTarget = total - qualified
         val totalMins = filteredLogs.sumOf { it.durationMinutes }
-        val avgMins = if (total > 0) totalMins / total else 0
-
         val totalH = totalMins / 60
         val totalM = totalMins % 60
-        val avgH = avgMins / 60
-        val avgM = avgMins % 60
 
-        "$qualified qualified, $underTarget under target, ${totalH}h ${totalM}m total, ${avgH}h ${avgM}m average"
+        "${pluralize(total, "entry", "entries")} · ${totalH}h ${totalM}m · ${pluralize(qualified, "valid day")}"
     }
 
     // Month grouping for LazyColumn stickyHeader
@@ -648,14 +649,16 @@ fun LogHistoryScreen(
                     },
                     singleLine = true,
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedContainerColor = AppTheme.colors.raised,
-                        unfocusedContainerColor = AppTheme.colors.raised,
+                        focusedContainerColor = AppTheme.colors.sheet,
+                        unfocusedContainerColor = AppTheme.colors.sheet,
                         focusedBorderColor = AppTheme.colors.presentDeep,
                         unfocusedBorderColor = AppTheme.colors.rule,
                         focusedTextColor = AppTheme.colors.ink,
-                        unfocusedTextColor = AppTheme.colors.ink
+                        unfocusedTextColor = AppTheme.colors.ink,
+                        focusedLabelColor = AppTheme.colors.presentDeep,
+                        unfocusedLabelColor = AppTheme.colors.muted
                     ),
-                    shape = RoundedCornerShape(12.dp),
+                    shape = RoundedCornerShape(16.dp),
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                     keyboardActions = KeyboardActions(onSearch = { focusManager.clearFocus() }),
                     modifier = Modifier
@@ -664,25 +667,27 @@ fun LogHistoryScreen(
                 )
             }
 
-            // Summary: one clean line under header (no cards)
-            Text(
-                text = summaryText,
-                style = MaterialTheme.typography.bodyMedium,
-                color = AppTheme.colors.muted,
+            // Summary line at top inside a small WfoCard
+            WfoCard(
+                elevation = 2.dp,
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 6.dp)
-            )
-
-            HorizontalDivider(
-                color = AppTheme.colors.rule,
-                thickness = 1.dp
-            )
+            ) {
+                Text(
+                    text = summaryText,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = AppTheme.colors.ink,
+                    fontWeight = FontWeight.Medium,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
+                )
+            }
 
             // Content: Empty states or grouped LazyColumn
             when {
                 uiState.logs.isEmpty() -> {
-                    // Empty state: No logs at all
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -691,21 +696,13 @@ fun LogHistoryScreen(
                     ) {
                         Column(
                             horizontalAlignment = Alignment.CenterHorizontally,
-                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                            verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Text(
-                                text = "No logs yet",
-                                style = MaterialTheme.typography.bodyLarge,
-                                color = AppTheme.colors.ink,
-                                fontWeight = FontWeight.Medium
+                            WfoEmptyState(
+                                illustration = WfoIllustrationKind.BAR_CHART,
+                                title = "No office days yet",
+                                body = "Your first punch in will show up here."
                             )
-                            Text(
-                                text = "Punch in from the Dashboard or add a log.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = AppTheme.colors.muted,
-                                textAlign = TextAlign.Center
-                            )
-                            Spacer(modifier = Modifier.height(6.dp))
                             WfoPrimaryButton(
                                 text = "Add log",
                                 onClick = {
@@ -718,7 +715,6 @@ fun LogHistoryScreen(
                 }
 
                 filteredLogs.isEmpty() -> {
-                    // Empty state: No logs match filters/search
                     Box(
                         modifier = Modifier
                             .fillMaxSize()
@@ -729,11 +725,9 @@ fun LogHistoryScreen(
                             horizontalAlignment = Alignment.CenterHorizontally,
                             verticalArrangement = Arrangement.spacedBy(12.dp)
                         ) {
-                            Text(
-                                text = "No logs match these filters.",
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = AppTheme.colors.muted,
-                                textAlign = TextAlign.Center
+                            WfoEmptyState(
+                                illustration = WfoIllustrationKind.BAR_CHART,
+                                body = "Nothing matches that search."
                             )
                             WfoTextButton(
                                 text = "Clear filters",
@@ -749,7 +743,6 @@ fun LogHistoryScreen(
                 }
 
                 else -> {
-                    // Grouped logs LazyColumn
                     LazyColumn(
                         modifier = Modifier.fillMaxSize()
                     ) {
@@ -801,33 +794,38 @@ fun LogHistoryScreen(
                                     enableDismissFromStartToEnd = false,
                                     enableDismissFromEndToStart = true,
                                     backgroundContent = {
-                                        val color = if (dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart) {
-                                            AppTheme.colors.danger
+                                        val isSwiping = dismissState.dismissDirection == SwipeToDismissBoxValue.EndToStart
+                                        val bgColor = if (isSwiping) {
+                                            AppTheme.colors.danger.copy(alpha = 0.12f)
                                         } else {
                                             Color.Transparent
                                         }
                                         Box(
                                             modifier = Modifier
                                                 .fillMaxSize()
-                                                .background(color)
+                                                .padding(horizontal = 16.dp, vertical = 4.dp)
+                                                .clip(SurfaceGroupShape)
+                                                .background(bgColor)
                                                 .padding(horizontal = 20.dp),
                                             contentAlignment = Alignment.CenterEnd
                                         ) {
-                                            Row(
-                                                verticalAlignment = Alignment.CenterVertically,
-                                                horizontalArrangement = Arrangement.spacedBy(6.dp)
-                                            ) {
-                                                Icon(
-                                                    imageVector = Icons.Default.Delete,
-                                                    contentDescription = "Delete log",
-                                                    tint = MaterialTheme.colorScheme.onError,
-                                                    modifier = Modifier.size(20.dp)
-                                                )
-                                                Text(
-                                                    text = "Delete",
-                                                    style = MaterialTheme.typography.labelLarge,
-                                                    color = MaterialTheme.colorScheme.onError
-                                                )
+                                            if (isSwiping) {
+                                                Row(
+                                                    verticalAlignment = Alignment.CenterVertically,
+                                                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                                                ) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Delete,
+                                                        contentDescription = "Delete log",
+                                                        tint = AppTheme.colors.danger,
+                                                        modifier = Modifier.size(20.dp)
+                                                    )
+                                                    Text(
+                                                        text = "Delete",
+                                                        style = MaterialTheme.typography.labelLarge,
+                                                        color = AppTheme.colors.danger
+                                                    )
+                                                }
                                             }
                                         }
                                     },
@@ -846,6 +844,10 @@ fun LogHistoryScreen(
                                     }
                                 )
                             }
+                        }
+
+                        item {
+                            Spacer(modifier = Modifier.height(16.dp))
                         }
                     }
                 }
@@ -878,17 +880,18 @@ private fun LogRowItem(
         String.format(Locale.US, "%dh %02dm", h, m)
     }
 
-    Column(
+    WfoCard(
+        elevation = 2.dp,
         modifier = Modifier
             .fillMaxWidth()
-            .background(AppTheme.colors.ground)
+            .padding(horizontal = 16.dp, vertical = 4.dp)
     ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
                 .defaultMinSize(minHeight = 48.dp)
                 .clickable(onClick = onClick)
-                .padding(horizontal = 16.dp, vertical = 8.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
                 .semantics {
                     customActions = listOf(
                         CustomAccessibilityAction("Edit log") {
@@ -901,9 +904,9 @@ private fun LogRowItem(
                         }
                     )
                 },
-            verticalArrangement = Arrangement.spacedBy(4.dp)
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            // Line 1: date on the left (no fixed width, weight 1), duration on right
+            // Line 1: date on the left, duration on right
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -925,45 +928,69 @@ private fun LogRowItem(
                 )
             }
 
-            // Line 2: time range, then the under-target indicator if applicable, wrapping onto a third line if needed
+            // Line 2: time range and status chip
             FlowRow(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp)
+                verticalArrangement = Arrangement.spacedBy(6.dp)
             ) {
                 Text(
                     text = timeRangeText,
                     style = MaterialTheme.typography.bodyMedium,
-                    color = AppTheme.colors.muted
+                    color = AppTheme.colors.muted,
+                    modifier = Modifier.align(Alignment.CenterVertically)
                 )
 
-                if (!isValid) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(4.dp),
-                        modifier = Modifier
-                            .background(
-                                color = AppTheme.colors.raised,
-                                shape = RoundedCornerShape(4.dp)
-                            )
-                            .border(
-                                width = 1.dp,
-                                color = AppTheme.colors.rule,
-                                shape = RoundedCornerShape(4.dp)
-                            )
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                if (isValid) {
+                    Surface(
+                        shape = ChipShape,
+                        color = AppTheme.colors.presentContainer,
+                        modifier = Modifier.align(Alignment.CenterVertically)
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.HourglassBottom,
-                            contentDescription = null,
-                            tint = AppTheme.colors.muted,
-                            modifier = Modifier.size(12.dp)
-                        )
-                        Text(
-                            text = "Under target",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = AppTheme.colors.muted
-                        )
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Check,
+                                contentDescription = null,
+                                tint = AppTheme.colors.presentDeep,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Text(
+                                text = "Valid",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = AppTheme.colors.presentDeep,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+                } else {
+                    Surface(
+                        shape = ChipShape,
+                        color = Color.Transparent,
+                        border = BorderStroke(1.dp, AppTheme.colors.short),
+                        modifier = Modifier.align(Alignment.CenterVertically)
+                    ) {
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Schedule,
+                                contentDescription = null,
+                                tint = AppTheme.colors.short,
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Text(
+                                text = "Under minimum",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = AppTheme.colors.short,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                     }
                 }
             }
@@ -979,11 +1006,6 @@ private fun LogRowItem(
                 )
             }
         }
-
-        HorizontalDivider(
-            color = AppTheme.colors.rule,
-            thickness = 1.dp
-        )
     }
 }
 
@@ -1007,8 +1029,8 @@ private fun FilterDateField(
     }
 
     Surface(
-        shape = RoundedCornerShape(12.dp),
-        color = AppTheme.colors.raised,
+        shape = RoundedCornerShape(16.dp),
+        color = AppTheme.colors.sheet,
         border = BorderStroke(1.dp, AppTheme.colors.rule),
         modifier = modifier
             .defaultMinSize(minHeight = 48.dp)

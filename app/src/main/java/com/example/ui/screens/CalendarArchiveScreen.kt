@@ -51,6 +51,9 @@ import com.example.ui.components.ManualLogDialog
 import com.example.ui.components.ManualLogTab
 import com.example.ui.components.MonthCalendarCard
 import com.example.ui.components.MonthNavigationHeader
+import com.example.ui.components.WfoCard
+import com.example.ui.components.WfoEmptyState
+import com.example.ui.components.WfoIllustrationKind
 import com.example.ui.components.YearMatrixMonthCard
 import com.example.ui.components.YearOverYearComparisonDialog
 import com.example.ui.components.wfoCardBorder
@@ -61,6 +64,7 @@ import com.example.ui.viewmodel.WfoUiState
 import com.example.ui.viewmodel.WfoViewModel
 import com.example.util.DateUtils
 import java.util.Calendar
+import java.util.Locale
 
 enum class CalendarDisplayMode {
     MONTH_VIEW,
@@ -270,6 +274,28 @@ fun CalendarArchiveScreen(
                     )
                 }
 
+                // Monthly empty state when no logs or leaves exist for the viewed month
+                val viewedMonthPrefix = String.format(
+                    Locale.US,
+                    "%04d-%02d",
+                    uiState.selectedArchiveYear,
+                    uiState.selectedArchiveMonth + 1
+                )
+                val hasMonthEntries = uiState.logs.any { it.date.startsWith(viewedMonthPrefix) } ||
+                    uiState.leaves.any { it.date.startsWith(viewedMonthPrefix) }
+
+                if (!hasMonthEntries) {
+                    item {
+                        WfoCard(elevation = 2.dp, modifier = Modifier.fillMaxWidth()) {
+                            WfoEmptyState(
+                                illustration = WfoIllustrationKind.CALENDAR,
+                                title = "No entries this month",
+                                body = "Tap or press and hold a day to log attendance or leave."
+                            )
+                        }
+                    }
+                }
+
                 // Selected day detail card with empty state helpful hint
                 item {
                     DailyStatusTimelineCard(
@@ -281,6 +307,30 @@ fun CalendarArchiveScreen(
                         minHours = uiState.settings.minHours,
                         onLogActionClick = {
                             selectedActionDateKey = uiState.selectedCalendarDateKey
+                        },
+                        onEditClick = {
+                            val dateKey = uiState.selectedCalendarDateKey
+                            val logForDate = uiState.selectedDateLog
+                            val leaveForDate = uiState.selectedDateLeave
+                            manualDialogInitialDate = dateKey
+                            manualDialogInitialLog = logForDate
+                            manualDialogInitialLeave = leaveForDate
+                            manualDialogInitialTab = if (leaveForDate != null && logForDate == null) {
+                                ManualLogTab.LEAVE_HOLIDAY
+                            } else {
+                                ManualLogTab.ATTENDANCE
+                            }
+                            showManualDialog = true
+                        },
+                        onDeleteClick = {
+                            val logForDate = uiState.selectedDateLog
+                            val leaveForDate = uiState.selectedDateLeave
+                            if (logForDate != null) {
+                                viewModel.deleteLog(uiState.selectedCalendarDateKey)
+                            }
+                            if (leaveForDate != null) {
+                                viewModel.deleteLeave(leaveForDate.id)
+                            }
                         },
                         modifier = Modifier.padding(bottom = 24.dp)
                     )
@@ -357,6 +407,7 @@ fun CalendarArchiveScreen(
                         logs = uiState.logs,
                         leaves = uiState.leaves,
                         minHours = uiState.settings.minHours,
+                        targetDaysPerMonth = uiState.settings.targetDaysPerMonth,
                         selectedDateKey = uiState.selectedCalendarDateKey,
                         onDateSelected = { dateKey ->
                             viewModel.selectCalendarDate(dateKey)

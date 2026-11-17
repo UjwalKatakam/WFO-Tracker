@@ -4,6 +4,7 @@
     <color name="app_ground">#0B1F17</color>
     <color name="app_raised">#12291F</color>
     <color name="app_sheet">#17342A</color>
+    <color name="app_card">#12291F</color>
     <color name="app_rule">#1F3A2D</color>
     <color name="app_ink">#E8F5EC</color>
     <color name="app_muted">#9FB5A8</color>
@@ -11,6 +12,8 @@
     <color name="app_present_deep">#4ADE80</color>
     <color name="app_on_present">#0B1F17</color>
     <color name="app_present_container">#1B4332</color>
+    <color name="app_progress">#4ADE80</color>
+    <color name="app_on_action">#0B1F17</color>
     <color name="app_short">#F59E0B</color>
     <color name="app_danger">#F87171</color>
     <color name="app_reward">#FBBF24</color>

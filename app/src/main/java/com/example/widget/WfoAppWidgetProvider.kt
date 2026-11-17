@@ -44,7 +44,7 @@ class WfoAppWidgetProvider : AppWidgetProvider() {
                 val preferences = WfoPreferences(context)
                 val settings = preferences.settingsFlow.first()
                 val isPunchedIn = settings.activePunchStartMillis != null && settings.activePunchStartMillis > 0
-                val presentColor = ContextCompat.getColor(context, R.color.app_present)
+                val presentColor = ContextCompat.getColor(context, R.color.app_present_deep)
                 val mutedColor = ContextCompat.getColor(context, R.color.app_muted)
                 val minHoursStr = String.format(Locale.US, "%.1f", settings.minHours)
 
