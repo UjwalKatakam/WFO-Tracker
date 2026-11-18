@@ -37,6 +37,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.LocalFireDepartment
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.SwapVert
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -65,6 +66,7 @@ import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -72,7 +74,9 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.role
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
@@ -717,6 +721,8 @@ fun DashboardPunchControl(
     minHours: Double,
     targetReached: Boolean,
     targetTimeFormatted: String,
+    countdownMode: Boolean,
+    onToggleCountdownMode: () -> Unit,
     onPunchInClick: () -> Unit,
     onPunchOutClick: () -> Unit,
     onArrivedEarlierClick: () -> Unit,
@@ -743,60 +749,199 @@ fun DashboardPunchControl(
                 textColorOverride = AppTheme.colors.presentDeep
             )
         } else {
-            val hours = elapsedSeconds / 3600
-            val minutes = (elapsedSeconds % 3600) / 60
-            val seconds = elapsedSeconds % 60
-            val timerText = String.format(Locale.US, "%02d:%02d:%02d", hours, minutes, seconds)
+            val context = LocalContext.current
+            val view = LocalView.current
+            val targetSec = (minHours * 3600).toLong().coerceAtLeast(0L)
+            val remainingSec = maxOf(0L, targetSec - elapsedSeconds)
+            val isOverTarget = targetReached || elapsedSeconds >= targetSec
+            val overtimeSec = maxOf(0L, elapsedSeconds - targetSec)
+
+            fun formatHmmss(totalSec: Long): String {
+                val h = totalSec / 3600
+                val m = (totalSec % 3600) / 60
+                val s = totalSec % 60
+                return String.format(Locale.US, "%d:%02d:%02d", h, m, s)
+            }
+
+            fun formatHm(totalSec: Long): String {
+                val totalMinutes = totalSec / 60
+                val h = totalMinutes / 60
+                val m = totalMinutes % 60
+                return if (h > 0) "${h}h ${m}m" else "${m}m"
+            }
+
+            fun formatWords(totalSec: Long): String {
+                val totalMinutes = totalSec / 60
+                val h = totalMinutes / 60
+                val m = totalMinutes % 60
+                return when {
+                    h > 0 && m > 0 -> "$h ${if (h == 1L) "hour" else "hours"} $m ${if (m == 1L) "minute" else "minutes"}"
+                    h > 0 -> "$h ${if (h == 1L) "hour" else "hours"}"
+                    else -> "$m ${if (m == 1L) "minute" else "minutes"}"
+                }
+            }
+
+            val timerLabel = when {
+                !countdownMode -> "Elapsed"
+                !isOverTarget -> "Remaining"
+                else -> "Over target"
+            }
+            val timerText = when {
+                !countdownMode -> formatHmmss(elapsedSeconds)
+                !isOverTarget -> "\u2212${formatHmmss(remainingSec)}"
+                else -> "+${formatHmmss(overtimeSec)}"
+            }
+            val digitsColor = if (countdownMode && isOverTarget) {
+                AppTheme.colors.progress
+            } else {
+                AppTheme.colors.ink
+            }
+            val timerStateDesc = when {
+                !countdownMode -> "Showing elapsed time, ${formatWords(elapsedSeconds)}"
+                !isOverTarget -> "Showing remaining time, ${formatWords(remainingSec)}"
+                else -> "Showing time over target, ${formatWords(overtimeSec)}"
+            }
+            val nextModeAnnouncement = if (countdownMode) {
+                "Showing elapsed time, ${formatWords(elapsedSeconds)}"
+            } else if (isOverTarget) {
+                "Showing time over target, ${formatWords(overtimeSec)}"
+            } else {
+                "Showing remaining time, ${formatWords(remainingSec)}"
+            }
+            val toggleClickLabel = if (countdownMode) {
+                "Switch to elapsed time"
+            } else {
+                "Switch to countdown"
+            }
+
+            val displayedSec = when {
+                !countdownMode -> elapsedSeconds
+                !isOverTarget -> remainingSec
+                else -> overtimeSec
+            }
+            val hoursDigits = (displayedSec / 3600).toString().length.coerceAtLeast(1)
+            val signPrefix = when {
+                !countdownMode -> ""
+                !isOverTarget -> "\u2212"
+                else -> "+"
+            }
+            val widthMeasureSample = "$signPrefix${"8".repeat(hoursDigits)}:88:88"
 
             Column(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                BoxWithConstraints(
-                    modifier = Modifier.fillMaxWidth(),
-                    contentAlignment = Alignment.Center
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable(
+                            role = Role.Button,
+                            onClickLabel = toggleClickLabel,
+                            onClick = {
+                                HapticHelper.performClick(context)
+                                view.announceForAccessibility(nextModeAnnouncement)
+                                onToggleCountdownMode()
+                            }
+                        )
+                        .semantics(mergeDescendants = true) {
+                            this.stateDescription = timerStateDesc
+                        }
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
                 ) {
-                    val fontScale = LocalDensity.current.fontScale
-                    val baseSp = if (maxWidth < 360.dp) 44f else 56f
-                    var currentFontSize by remember(timerText, maxWidth, fontScale) {
-                        val initial = if (fontScale > 1.05f) (baseSp / fontScale).coerceAtLeast(32f).sp else baseSp.sp
-                        mutableStateOf(initial)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = timerLabel,
+                            style = MaterialTheme.typography.labelLarge,
+                            color = AppTheme.colors.muted
+                        )
+                        Icon(
+                            imageVector = Icons.Default.SwapVert,
+                            contentDescription = null,
+                            tint = AppTheme.colors.muted,
+                            modifier = Modifier.size(16.dp)
+                        )
                     }
 
-                    Text(
-                        text = timerText,
-                        style = MaterialTheme.typography.displayLarge.copy(fontSize = currentFontSize),
-                        color = AppTheme.colors.ink,
-                        maxLines = 1,
-                        softWrap = false,
-                        textAlign = TextAlign.Center,
-                        onTextLayout = { layoutResult ->
-                            if (layoutResult.hasVisualOverflow || layoutResult.didOverflowWidth) {
-                                if (currentFontSize.value > 22f) {
-                                    currentFontSize = (currentFontSize.value * 0.9f).sp
+                    BoxWithConstraints(
+                        modifier = Modifier.fillMaxWidth(),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        val density = LocalDensity.current
+                        val fontScale = density.fontScale
+                        val baseSp = if (maxWidth < 360.dp) 44f else 56f
+                        val maxWidthPx = with(density) { (maxWidth - 4.dp).toPx().coerceAtLeast(1f) }
+                        val textMeasurer = rememberTextMeasurer()
+                        val baseStyle = MaterialTheme.typography.displayLarge
+
+                        val fittedFontSizeSp = remember(widthMeasureSample, maxWidthPx, fontScale, baseSp, baseStyle) {
+                            var candidate = if (fontScale > 1.05f) (baseSp / fontScale).coerceAtLeast(24f) else baseSp
+                            while (candidate > 22f) {
+                                val measured = textMeasurer.measure(
+                                    text = widthMeasureSample,
+                                    style = baseStyle.copy(
+                                        fontSize = candidate.sp,
+                                        lineHeight = (candidate * 1.15f).sp
+                                    ),
+                                    maxLines = 1,
+                                    softWrap = false
+                                )
+                                if (measured.size.width <= maxWidthPx) break
+                                candidate *= 0.92f
+                            }
+                            candidate
+                        }
+                        var currentFontSize by remember(fittedFontSizeSp) {
+                            mutableStateOf(fittedFontSizeSp.sp)
+                        }
+
+                        Text(
+                            text = timerText,
+                            style = baseStyle.copy(
+                                fontSize = currentFontSize,
+                                lineHeight = (currentFontSize.value * 1.15f).sp
+                            ),
+                            color = digitsColor,
+                            maxLines = 1,
+                            softWrap = false,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.clearAndSetSemantics {},
+                            onTextLayout = { layoutResult ->
+                                if (layoutResult.hasVisualOverflow || layoutResult.didOverflowWidth) {
+                                    if (currentFontSize.value > 22f) {
+                                        currentFontSize = (currentFontSize.value * 0.9f).sp
+                                    }
                                 }
                             }
-                        }
-                    )
+                        )
+                    }
                 }
 
-                val targetSec = (minHours * 3600).toLong()
-                val remainingSec = maxOf(0L, targetSec - elapsedSeconds)
-
-                if (targetReached || remainingSec <= 0L) {
-                    Text(
-                        text = "Daily target met",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = AppTheme.colors.presentDeep,
-                        fontWeight = FontWeight.Medium
-                    )
+                if (!countdownMode) {
+                    if (isOverTarget) {
+                        Text(
+                            text = "Target reached",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = AppTheme.colors.progress,
+                            fontWeight = FontWeight.Medium
+                        )
+                    } else {
+                        Text(
+                            text = "Remaining: ${formatHm(remainingSec)}",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = AppTheme.colors.muted
+                        )
+                    }
                 } else {
-                    val remHours = remainingSec / 3600
-                    val remMins = (remainingSec % 3600) / 60
-                    val remText = if (remHours > 0) "${remHours}h ${remMins}m" else "${remMins}m"
                     Text(
-                        text = "Remaining: $remText",
+                        text = "Elapsed: ${formatHm(elapsedSeconds)}",
                         style = MaterialTheme.typography.bodyMedium,
                         color = AppTheme.colors.muted
                     )

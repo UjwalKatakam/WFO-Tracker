@@ -48,7 +48,8 @@ data class WfoSettings(
     val persistentUndoSummary: String? = null,
     val tokenUnreadable: Boolean = false,
     val lastCelebratedMonthKey: String = "",
-    val themeMode: ThemeMode = ThemeMode.LIGHT
+    val themeMode: ThemeMode = ThemeMode.LIGHT,
+    val timerCountdownMode: Boolean = false
 )
 
 class WfoPreferences(
@@ -81,6 +82,7 @@ class WfoPreferences(
         val PERSISTENT_UNDO_SUMMARY = stringPreferencesKey("persistent_undo_summary")
         val LAST_CELEBRATED_MONTH_KEY = stringPreferencesKey("last_celebrated_month_key")
         val THEME_MODE = stringPreferencesKey("theme_mode")
+        val TIMER_COUNTDOWN_MODE = booleanPreferencesKey("timer_countdown_mode")
     }
 
     init {
@@ -158,7 +160,8 @@ class WfoPreferences(
             lastCelebratedMonthKey = prefs[Keys.LAST_CELEBRATED_MONTH_KEY] ?: "",
             themeMode = prefs[Keys.THEME_MODE]?.let { raw ->
                 ThemeMode.entries.firstOrNull { it.name == raw }
-            } ?: ThemeMode.LIGHT
+            } ?: ThemeMode.LIGHT,
+            timerCountdownMode = prefs[Keys.TIMER_COUNTDOWN_MODE] ?: false
         )
     }
 
@@ -252,6 +255,12 @@ class WfoPreferences(
     suspend fun setThemeMode(mode: ThemeMode) {
         context.dataStore.edit { prefs ->
             prefs[Keys.THEME_MODE] = mode.name
+        }
+    }
+
+    suspend fun setTimerCountdownMode(countdown: Boolean) {
+        context.dataStore.edit { prefs ->
+            prefs[Keys.TIMER_COUNTDOWN_MODE] = countdown
         }
     }
 }

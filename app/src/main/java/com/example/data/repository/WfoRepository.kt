@@ -228,10 +228,6 @@ class WfoRepository(
         preferences.setPersistentUndoSummary(null)
     }
 
-    suspend fun adjustArrivalStartTime(newStartMillis: Long) {
-        preferences.setActivePunchStart(newStartMillis)
-    }
-
     suspend fun clearActiveSessionOnly() {
         preferences.setActivePunchStart(null)
     }
@@ -318,6 +314,10 @@ class WfoRepository(
 
     suspend fun setThemeMode(mode: com.example.data.preferences.ThemeMode) {
         preferences.setThemeMode(mode)
+    }
+
+    suspend fun setTimerCountdownMode(countdown: Boolean) {
+        preferences.setTimerCountdownMode(countdown)
     }
 
     // Cloud Backup & GitHub Gist Sync

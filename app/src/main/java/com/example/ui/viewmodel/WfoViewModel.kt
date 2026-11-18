@@ -5,7 +5,6 @@ import android.content.Context
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.example.data.local.CheckInLog
-import com.example.data.local.LeaveDefaults
 import com.example.data.local.LeaveHoliday
 import com.example.data.local.LeaveRangeResult
 import com.example.data.preferences.WfoSettings
@@ -137,7 +136,11 @@ class WfoViewModel @JvmOverloads constructor(
     }
 
     fun toggleCountdownMode() {
-        _uiState.update { it.copy(countdownMode = !it.countdownMode) }
+        val next = !_uiState.value.settings.timerCountdownMode
+        _uiState.update { it.copy(settings = it.settings.copy(timerCountdownMode = next)) }
+        viewModelScope.launch {
+            repository.setTimerCountdownMode(next)
+        }
     }
 
     fun setTrendMode(mode: TrendMode) {
@@ -356,85 +359,6 @@ class WfoViewModel @JvmOverloads constructor(
                 it.copy(
                     snackbarMessage = if (!initialNote.isNullOrBlank()) "Punched in with note" else "Punched in",
                     geofenceAlertMessage = null
-                )
-            }
-        }
-    }
-
-    /**
-     * "Forgot to punch in" quick recovery: sets today's arrival time to specific hour/minute
-     */
-    fun backfillPunchInToday(context: Context, hourOfDay: Int, minute: Int) {
-        viewModelScope.launch {
-            val cal = Calendar.getInstance().apply {
-                set(Calendar.HOUR_OF_DAY, hourOfDay)
-                set(Calendar.MINUTE, minute)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
-            }
-            val startMillis = cal.timeInMillis
-            val settings = _uiState.value.settings
-
-            HapticHelper.performClick(context)
-            repository.punchIn(startMillis)
-            PunchTimerService.start(context, startMillis, settings.minHours)
-            com.example.widget.WfoAppWidgetProvider.updateAllWidgets(context)
-
-            val timeFormat = SimpleDateFormat("hh:mm a", Locale.getDefault())
-            _uiState.update {
-                it.copy(
-                    snackbarMessage = "Punched in at ${timeFormat.format(Date(startMillis))}"
-                )
-            }
-        }
-    }
-
-    /**
-     * Quick adjust arrival time for currently active live session
-     */
-    fun adjustActiveSessionStart(context: Context, hourOfDay: Int, minute: Int) {
-        viewModelScope.launch {
-            val cal = Calendar.getInstance().apply {
-                set(Calendar.HOUR_OF_DAY, hourOfDay)
-                set(Calendar.MINUTE, minute)
-                set(Calendar.SECOND, 0)
-                set(Calendar.MILLISECOND, 0)
-            }
-            val newStart = cal.timeInMillis
-            val settings = _uiState.value.settings
-
-            repository.adjustArrivalStartTime(newStart)
-            PunchTimerService.start(context, newStart, settings.minHours)
-            com.example.widget.WfoAppWidgetProvider.updateAllWidgets(context)
-
-            val timeFormat = SimpleDateFormat("hh:mm a", Locale.getDefault())
-            _uiState.update {
-                it.copy(
-                    snackbarMessage = "Arrival time adjusted to ${timeFormat.format(Date(newStart))}"
-                )
-            }
-        }
-    }
-
-    /**
-     * Switch today from active office session to Approved WFH
-     */
-    fun markTodayAsWfh(context: Context) {
-        viewModelScope.launch {
-            PunchTimerService.stop(context)
-            repository.clearActiveSessionOnly()
-            com.example.widget.WfoAppWidgetProvider.updateAllWidgets(context)
-
-            val today = DateUtils.todayDateStr()
-            repository.insertLeaveRange(
-                today,
-                today,
-                LeaveDefaults.TYPE_WFH,
-                LeaveDefaults.defaultTitleFor(LeaveDefaults.TYPE_WFH)
-            )
-            _uiState.update {
-                it.copy(
-                    snackbarMessage = "Today marked as work from home"
                 )
             }
         }

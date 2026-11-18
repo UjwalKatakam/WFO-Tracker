@@ -573,6 +573,8 @@ fun DashboardScreen(
                     minHours = uiState.settings.minHours,
                     targetReached = uiState.targetReached,
                     targetTimeFormatted = uiState.targetTimeFormatted,
+                    countdownMode = uiState.settings.timerCountdownMode,
+                    onToggleCountdownMode = { viewModel.toggleCountdownMode() },
                     onPunchInClick = {
                         viewModel.requestPunchIn(context)
                     },

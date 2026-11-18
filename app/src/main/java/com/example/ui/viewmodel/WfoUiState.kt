@@ -32,7 +32,6 @@ data class WfoUiState(
     val isPunchedIn: Boolean = false,
     val activeStartMillis: Long? = null,
     val elapsedSeconds: Long = 0L,
-    val countdownMode: Boolean = false,
     val targetReached: Boolean = false,
     val targetTimeFormatted: String = "",
     val selectedCalendarDateKey: String = DateUtils.todayDateStr(),
@@ -102,13 +101,6 @@ data class WfoUiState(
 
     val weeklyTrends: List<DateUtils.TrendPoint>
         get() = DateUtils.calculateWeeklyTrends(logs, settings.targetDaysPerWeek, settings.minHours)
-
-    val progressToDailyQuota: Float
-        get() {
-            val targetSec = (settings.minHours * 3600).toFloat()
-            if (targetSec <= 0f) return 0f
-            return (elapsedSeconds.toFloat() / targetSec).coerceIn(0f, 1f)
-        }
 
     /**
      * Detailed breakdown for each day of the current week (Monday through Sunday)
